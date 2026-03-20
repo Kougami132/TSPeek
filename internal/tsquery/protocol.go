@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	dialTimeout    = 5 * time.Second
+	commandTimeout = 10 * time.Second
+)
+
 func formatCommand(name string, args ...commandArg) string {
 	var builder strings.Builder
 	builder.WriteString(name)
@@ -29,7 +34,7 @@ func (c *Client) ensureConnected(ctx context.Context) error {
 	}
 
 	address := net.JoinHostPort(c.cfg.Host, strconv.Itoa(c.cfg.QueryPort))
-	dialer := net.Dialer{Timeout: c.cfg.DialTimeout}
+	dialer := net.Dialer{Timeout: dialTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
 		return err
@@ -57,12 +62,7 @@ func (c *Client) ensureConnected(ctx context.Context) error {
 		return err
 	}
 
-	var useCommand string
-	if c.cfg.ServerID > 0 {
-		useCommand = formatCommand("use", commandArg{Key: "sid", Value: strconv.Itoa(c.cfg.ServerID)})
-	} else {
-		useCommand = formatCommand("use", commandArg{Key: "port", Value: strconv.Itoa(c.cfg.ServerPort)})
-	}
+	useCommand := formatCommand("use", commandArg{Key: "port", Value: strconv.Itoa(c.cfg.ServerPort)})
 	if _, err := c.exec(ctx, useCommand); err != nil {
 		c.closeLocked()
 		return err
@@ -76,7 +76,7 @@ func (c *Client) exec(_ context.Context, command string) ([]string, error) {
 		return nil, fmt.Errorf("serverquery connection is not available")
 	}
 
-	if err := c.conn.SetWriteDeadline(time.Now().Add(c.cfg.CommandTimeout)); err != nil {
+	if err := c.conn.SetWriteDeadline(time.Now().Add(commandTimeout)); err != nil {
 		return nil, err
 	}
 	if _, err := io.WriteString(c.conn, command+"\n"); err != nil {
@@ -109,7 +109,7 @@ func (c *Client) readLine() (string, error) {
 	if c.conn == nil || c.reader == nil {
 		return "", io.EOF
 	}
-	if err := c.conn.SetReadDeadline(time.Now().Add(c.cfg.CommandTimeout)); err != nil {
+	if err := c.conn.SetReadDeadline(time.Now().Add(commandTimeout)); err != nil {
 		return "", err
 	}
 	line, err := c.reader.ReadString('\n')

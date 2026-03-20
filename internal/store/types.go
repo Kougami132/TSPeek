@@ -11,13 +11,11 @@ type Snapshot struct {
 }
 
 type SnapshotMeta struct {
-	Sequence               uint64    `json:"sequence"`
-	FetchedAt              time.Time `json:"fetched_at"`
-	LatencyMS              int64     `json:"latency_ms"`
-	RefreshInterval        string    `json:"refresh_interval"`
-	RefreshIntervalSeconds int       `json:"refresh_interval_seconds"`
-	Stale                  bool      `json:"stale"`
-	LastError              string    `json:"last_error,omitempty"`
+	Sequence  uint64    `json:"sequence"`
+	FetchedAt time.Time `json:"fetched_at"`
+	LatencyMS int64     `json:"latency_ms"`
+	Stale     bool      `json:"stale"`
+	LastError string    `json:"last_error,omitempty"`
 }
 
 type ServerInfo struct {
@@ -64,6 +62,8 @@ type ClientInfo struct {
 	InputHardware    bool   `json:"input_hardware"`
 	OutputHardware   bool   `json:"output_hardware"`
 	Talking          bool   `json:"talking"`
+	TalkPower        int    `json:"talk_power"`
+	GroupSortID      int    `json:"group_sort_id"`
 	IdleSeconds      int64  `json:"idle_seconds"`
 	ConnectedSeconds int64  `json:"connected_seconds"`
 	ServerGroups     string `json:"server_groups,omitempty"`

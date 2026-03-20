@@ -65,27 +65,15 @@ TSPEEK_CONFIG=/path/to/config.yaml ./tspeek
 参考 `config.example.yaml`：
 
 ```yaml
-listen_address: ":8080"
-log_level: "info"              # debug / info / warn / error
-
-http:
-  read_timeout: "5s"
-  write_timeout: "30s"
-  idle_timeout: "60s"
-
-dashboard:
-  refresh_interval: "5s"       # 数据刷新间隔
-  show_query_clients: false    # 是否显示 ServerQuery 客户端
+port: 8080                       # 监听端口
+log_level: "info"                # debug / info / warn / error
 
 serverquery:
-  host: "example.com"          # TeamSpeak 服务器地址
-  query_port: 10011            # ServerQuery 端口
+  host: "example.com"            # TeamSpeak 服务器地址
+  query_port: 10011              # ServerQuery 端口
   username: "serverquery_user"
   password: "change-me"
-  server_port: 9987            # TeamSpeak 服务端口
-  # sid: 1                     # 服务器 ID（可选）
-  dial_timeout: "5s"
-  command_timeout: "10s"
+  server_port: 9987              # TeamSpeak 服务端口
 ```
 
 ## Docker 部署

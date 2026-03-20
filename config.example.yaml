@@ -1,14 +1,5 @@
-listen_address: ":8080"
+port: 8080
 log_level: "info"
-
-http:
-  read_timeout: "5s"
-  write_timeout: "30s"
-  idle_timeout: "60s"
-
-dashboard:
-  refresh_interval: "5s"
-  show_query_clients: false
 
 serverquery:
   host: "example.com"
@@ -16,6 +7,3 @@ serverquery:
   username: "serverquery_user"
   password: "change-me"
   server_port: 9987
-  # sid: 1
-  dial_timeout: "5s"
-  command_timeout: "10s"

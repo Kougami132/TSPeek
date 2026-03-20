@@ -22,11 +22,8 @@ func (s *Server) handleReady(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) handlePublicConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, PublicConfigResponse{
-		RefreshInterval:        s.refreshInterval.String(),
-		RefreshIntervalSeconds: int(s.refreshInterval / 1e9), // time.Duration 纳秒 → 秒
-		ShowQueryClients:       s.showQueryClients,
-		ServerHost:             s.serverHost,
-		ServerPort:             s.serverPort,
+		ServerHost: s.serverHost,
+		ServerPort: s.serverPort,
 	})
 }
 

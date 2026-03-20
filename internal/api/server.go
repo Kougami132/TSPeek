@@ -3,7 +3,6 @@ package api
 import (
 	"log/slog"
 	"net/http"
-	"time"
 
 	"tspeek/internal/store"
 )
@@ -17,33 +16,27 @@ type SnapshotSource interface {
 
 // Server 是 HTTP API 服务器。
 type Server struct {
-	logger           *slog.Logger
-	store            SnapshotSource
-	refreshInterval  time.Duration
-	showQueryClients bool
-	serverHost       string
-	serverPort       int
+	logger     *slog.Logger
+	store      SnapshotSource
+	serverHost string
+	serverPort int
 }
 
 // Options 是创建 Server 所需的选项。
 type Options struct {
-	Logger           *slog.Logger
-	Store            SnapshotSource
-	RefreshInterval  time.Duration
-	ShowQueryClients bool
-	ServerHost       string
-	ServerPort       int
+	Logger     *slog.Logger
+	Store      SnapshotSource
+	ServerHost string
+	ServerPort int
 }
 
 // NewServer 创建一个新的 API Server。
 func NewServer(opts Options) *Server {
 	return &Server{
-		logger:           opts.Logger,
-		store:            opts.Store,
-		refreshInterval:  opts.RefreshInterval,
-		showQueryClients: opts.ShowQueryClients,
-		serverHost:       opts.ServerHost,
-		serverPort:       opts.ServerPort,
+		logger:     opts.Logger,
+		store:      opts.Store,
+		serverHost: opts.ServerHost,
+		serverPort: opts.ServerPort,
 	}
 }
 

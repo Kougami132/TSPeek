@@ -11,8 +11,6 @@ export interface SnapshotMeta {
   sequence: number
   fetched_at: string
   latency_ms: number
-  refresh_interval: string
-  refresh_interval_seconds: number
   stale: boolean
   last_error?: string
 }
@@ -61,6 +59,8 @@ export interface ClientInfo {
   input_hardware: boolean
   output_hardware: boolean
   talking: boolean
+  talk_power: number
+  group_sort_id: number
   idle_seconds: number
   connected_seconds: number
   server_groups?: string
@@ -68,9 +68,6 @@ export interface ClientInfo {
 }
 
 export interface PublicConfig {
-  refresh_interval: string
-  refresh_interval_seconds: number
-  show_query_clients: boolean
   server_host: string
   server_port: number
 }

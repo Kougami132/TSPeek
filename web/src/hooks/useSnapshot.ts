@@ -10,12 +10,11 @@ interface UseSnapshotReturn {
 }
 
 const defaultPublicConfig: PublicConfig = {
-  refresh_interval: '5s',
-  refresh_interval_seconds: 5,
-  show_query_clients: false,
   server_host: '',
   server_port: 0,
 }
+
+const fallbackIntervalMs = 5000
 
 export function useSnapshot(): UseSnapshotReturn {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
@@ -71,10 +70,10 @@ export function useSnapshot(): UseSnapshotReturn {
     fetchPublicConfig()
       .then((cfg) => {
         if (!closedRef.current) setPublicConfig(cfg)
-        scheduleFallback(Math.max(3000, (cfg.refresh_interval_seconds || 5) * 1000))
+        scheduleFallback(fallbackIntervalMs)
       })
       .catch(() => {
-        scheduleFallback(5000)
+        scheduleFallback(fallbackIntervalMs)
       })
       .finally(fetchSnapshot)
 
@@ -95,9 +94,7 @@ export function useSnapshot(): UseSnapshotReturn {
       es.onerror = () => {
         if (closedRef.current) return
         setConnectionState('waiting')
-        scheduleFallback(
-          Math.max(3000, (publicConfig.refresh_interval_seconds || 5) * 1000),
-        )
+        scheduleFallback(fallbackIntervalMs)
       }
     }
 

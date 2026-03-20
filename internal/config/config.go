@@ -5,70 +5,37 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type fileConfig struct {
-	ListenAddress string          `yaml:"listen_address"`
-	LogLevel      string          `yaml:"log_level"`
-	HTTP          fileHTTPConfig  `yaml:"http"`
-	Dashboard     fileDashboard   `yaml:"dashboard"`
-	ServerQuery   fileServerQuery `yaml:"serverquery"`
-}
-
-type fileHTTPConfig struct {
-	ReadTimeout  string `yaml:"read_timeout"`
-	WriteTimeout string `yaml:"write_timeout"`
-	IdleTimeout  string `yaml:"idle_timeout"`
-}
-
-type fileDashboard struct {
-	RefreshInterval  string `yaml:"refresh_interval"`
-	ShowQueryClients bool   `yaml:"show_query_clients"`
+	Port        int             `yaml:"port"`
+	LogLevel    string          `yaml:"log_level"`
+	ServerQuery fileServerQuery `yaml:"serverquery"`
 }
 
 type fileServerQuery struct {
-	Host           string `yaml:"host"`
-	QueryPort      int    `yaml:"query_port"`
-	Username       string `yaml:"username"`
-	Password       string `yaml:"password"`
-	ServerPort     int    `yaml:"server_port"`
-	ServerID       int    `yaml:"sid"`
-	DialTimeout    string `yaml:"dial_timeout"`
-	CommandTimeout string `yaml:"command_timeout"`
+	Host       string `yaml:"host"`
+	QueryPort  int    `yaml:"query_port"`
+	Username   string `yaml:"username"`
+	Password   string `yaml:"password"`
+	ServerPort int    `yaml:"server_port"`
 }
 
 // Config 是运行时配置，由 Load 函数从 YAML 文件解析并校验后生成。
 type Config struct {
-	ListenAddress string
-	LogLevel      slog.Level
-	HTTP          HTTPConfig
-	Dashboard     DashboardConfig
-	ServerQuery   ServerQueryConfig
-}
-
-type HTTPConfig struct {
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-}
-
-type DashboardConfig struct {
-	RefreshInterval  time.Duration
-	ShowQueryClients bool
+	Port        int
+	LogLevel    slog.Level
+	ServerQuery ServerQueryConfig
 }
 
 type ServerQueryConfig struct {
-	Host           string
-	QueryPort      int
-	Username       string
-	Password       string
-	ServerPort     int
-	ServerID       int
-	DialTimeout    time.Duration
-	CommandTimeout time.Duration
+	Host       string
+	QueryPort  int
+	Username   string
+	Password   string
+	ServerPort int
 }
 
 // Load 从指定路径加载 YAML 配置文件并返回校验后的运行时配置。
@@ -83,35 +50,6 @@ func Load(path string) (Config, error) {
 		return Config{}, err
 	}
 
-	refreshInterval, err := parseDuration(raw.Dashboard.RefreshInterval, 5*time.Second)
-	if err != nil {
-		return Config{}, fmt.Errorf("dashboard.refresh_interval: %w", err)
-	}
-	if refreshInterval < time.Second {
-		return Config{}, fmt.Errorf("dashboard.refresh_interval must be at least 1s")
-	}
-
-	readTimeout, err := parseDuration(raw.HTTP.ReadTimeout, 5*time.Second)
-	if err != nil {
-		return Config{}, fmt.Errorf("http.read_timeout: %w", err)
-	}
-	writeTimeout, err := parseDuration(raw.HTTP.WriteTimeout, 30*time.Second)
-	if err != nil {
-		return Config{}, fmt.Errorf("http.write_timeout: %w", err)
-	}
-	idleTimeout, err := parseDuration(raw.HTTP.IdleTimeout, 60*time.Second)
-	if err != nil {
-		return Config{}, fmt.Errorf("http.idle_timeout: %w", err)
-	}
-	dialTimeout, err := parseDuration(raw.ServerQuery.DialTimeout, 5*time.Second)
-	if err != nil {
-		return Config{}, fmt.Errorf("serverquery.dial_timeout: %w", err)
-	}
-	commandTimeout, err := parseDuration(raw.ServerQuery.CommandTimeout, 10*time.Second)
-	if err != nil {
-		return Config{}, fmt.Errorf("serverquery.command_timeout: %w", err)
-	}
-
 	if strings.TrimSpace(raw.ServerQuery.Host) == "" {
 		return Config{}, fmt.Errorf("serverquery.host is required")
 	}
@@ -124,8 +62,8 @@ func Load(path string) (Config, error) {
 	if raw.ServerQuery.Password == "" {
 		return Config{}, fmt.Errorf("serverquery.password is required")
 	}
-	if raw.ServerQuery.ServerID <= 0 && raw.ServerQuery.ServerPort <= 0 {
-		return Config{}, fmt.Errorf("one of serverquery.sid or serverquery.server_port is required")
+	if raw.ServerQuery.ServerPort <= 0 {
+		return Config{}, fmt.Errorf("serverquery.server_port is required")
 	}
 
 	level := slog.LevelInfo
@@ -141,43 +79,20 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("unsupported log_level %q", raw.LogLevel)
 	}
 
-	listenAddress := raw.ListenAddress
-	if listenAddress == "" {
-		listenAddress = ":8080"
+	port := raw.Port
+	if port == 0 {
+		port = 8080
 	}
 
 	return Config{
-		ListenAddress: listenAddress,
-		LogLevel:      level,
-		HTTP: HTTPConfig{
-			ReadTimeout:  readTimeout,
-			WriteTimeout: writeTimeout,
-			IdleTimeout:  idleTimeout,
-		},
-		Dashboard: DashboardConfig{
-			RefreshInterval:  refreshInterval,
-			ShowQueryClients: raw.Dashboard.ShowQueryClients,
-		},
+		Port:     port,
+		LogLevel: level,
 		ServerQuery: ServerQueryConfig{
-			Host:           strings.TrimSpace(raw.ServerQuery.Host),
-			QueryPort:      raw.ServerQuery.QueryPort,
-			Username:       raw.ServerQuery.Username,
-			Password:       raw.ServerQuery.Password,
-			ServerPort:     raw.ServerQuery.ServerPort,
-			ServerID:       raw.ServerQuery.ServerID,
-			DialTimeout:    dialTimeout,
-			CommandTimeout: commandTimeout,
+			Host:       strings.TrimSpace(raw.ServerQuery.Host),
+			QueryPort:  raw.ServerQuery.QueryPort,
+			Username:   raw.ServerQuery.Username,
+			Password:   raw.ServerQuery.Password,
+			ServerPort: raw.ServerQuery.ServerPort,
 		},
 	}, nil
-}
-
-func parseDuration(raw string, fallback time.Duration) (time.Duration, error) {
-	if strings.TrimSpace(raw) == "" {
-		return fallback, nil
-	}
-	parsed, err := time.ParseDuration(strings.TrimSpace(raw))
-	if err != nil {
-		return 0, err
-	}
-	return parsed, nil
 }
