@@ -1,0 +1,26 @@
+.ace-tool/
+.claude/
+
+# Go
+tspeek
+*.exe
+
+# 前端构建产物（由 CI/Docker 构建时生成）
+web/dist/
+web/node_modules/
+
+# embed 目标目录（由构建脚本复制，不入库）
+internal/api/dist/
+
+# 配置文件（含凭据）
+config.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
