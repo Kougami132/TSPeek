@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	refreshInterval  = 5 * time.Second
+	baseInterval     = 5 * time.Second
+	maxBackoff       = 2 * time.Minute
 	showQueryClients = false
 
 	httpReadTimeout  = 5 * time.Second
@@ -30,24 +31,41 @@ const (
 )
 
 type poller struct {
-	client *tsquery.Client
-	store  *store.SnapshotStore
-	logger *slog.Logger
+	client           *tsquery.Client
+	store            *store.SnapshotStore
+	logger           *slog.Logger
+	consecutiveFails int
+}
+
+func (p *poller) nextInterval() time.Duration {
+	if p.consecutiveFails == 0 {
+		return baseInterval
+	}
+	shift := p.consecutiveFails
+	if shift > 5 {
+		shift = 5
+	}
+	backoff := baseInterval * time.Duration(1<<shift)
+	if backoff > maxBackoff {
+		backoff = maxBackoff
+	}
+	return backoff
 }
 
 func (p *poller) run(ctx context.Context) {
 	p.poll(ctx)
 
-	ticker := time.NewTicker(refreshInterval)
-	defer ticker.Stop()
+	timer := time.NewTimer(p.nextInterval())
+	defer timer.Stop()
 	defer p.client.Close()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			p.poll(ctx)
+			timer.Reset(p.nextInterval())
 		}
 	}
 }
@@ -56,10 +74,22 @@ func (p *poller) poll(ctx context.Context) {
 	started := time.Now()
 	latest, err := p.client.Fetch(ctx)
 	if err != nil {
-		p.logger.Error("snapshot refresh failed", slog.Any("error", err))
+		p.consecutiveFails++
+		interval := p.nextInterval()
+		p.logger.Error("snapshot refresh failed",
+			slog.Any("error", err),
+			slog.String("next_retry", interval.String()),
+		)
 		p.store.SetStale(err)
 		return
 	}
+
+	if p.consecutiveFails > 0 {
+		p.logger.Info("snapshot refresh recovered",
+			slog.Int("after_failures", p.consecutiveFails),
+		)
+	}
+	p.consecutiveFails = 0
 
 	latest.Meta.FetchedAt = time.Now().UTC()
 	latest.Meta.LatencyMS = time.Since(started).Milliseconds()

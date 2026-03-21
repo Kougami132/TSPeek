@@ -7,9 +7,15 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"time"
 
 	"tspeek/internal/config"
 	"tspeek/internal/store"
+)
+
+const (
+	permsCacheTTL    = 5 * time.Minute
+	permsThrottleGap = 600 * time.Millisecond
 )
 
 type commandArg struct {
@@ -24,6 +30,9 @@ type Client struct {
 	logger *slog.Logger
 	conn   net.Conn
 	reader *bufio.Reader
+
+	cachedGroupPerms map[int]groupPerms
+	permsCachedAt    time.Time
 }
 
 // NewClient 创建一个新的 ServerQuery 客户端。
@@ -39,7 +48,8 @@ func (c *Client) Fetch(ctx context.Context) (store.Snapshot, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if err := c.ensureConnected(ctx); err != nil {
+	reconnected, err := c.ensureConnected(ctx)
+	if err != nil {
 		return store.Snapshot{}, err
 	}
 
@@ -76,18 +86,7 @@ func (c *Client) Fetch(ctx context.Context) (store.Snapshot, error) {
 		return store.Snapshot{}, fmt.Errorf("serverinfo returned no rows")
 	}
 
-	// 获取每个服务器组的权限（i_client_talk_power, i_group_sort_id）
-	allGroupPerms := make(map[int]groupPerms, len(groupRows))
-	for _, row := range groupRows {
-		sgid := parseInt(row["sgid"])
-		permLines, err := c.exec(ctx, fmt.Sprintf("servergrouppermlist sgid=%d -permsid", sgid))
-		if err != nil {
-			// 权限不足时跳过该组，不中断连接
-			continue
-		}
-		permRows := parseResponseRows(permLines)
-		allGroupPerms[sgid] = mapGroupPerms(permRows)
-	}
+	allGroupPerms := c.resolvePermsCache(ctx, reconnected, groupRows)
 
 	server := mapServer(serverRows[0])
 	channels := mapChannels(channelRows)
@@ -99,6 +98,47 @@ func (c *Client) Fetch(ctx context.Context) (store.Snapshot, error) {
 		Channels: channels,
 		Clients:  clients,
 	}, nil
+}
+
+// resolvePermsCache returns group permissions, using cache when possible.
+// Skips refresh on reconnection to keep command count low; throttles
+// individual queries when actually refreshing.
+func (c *Client) resolvePermsCache(ctx context.Context, reconnected bool, groupRows []map[string]string) map[int]groupPerms {
+	cacheValid := c.cachedGroupPerms != nil && time.Since(c.permsCachedAt) < permsCacheTTL
+
+	if reconnected && c.cachedGroupPerms != nil {
+		return c.cachedGroupPerms
+	}
+	if cacheValid {
+		return c.cachedGroupPerms
+	}
+
+	perms := make(map[int]groupPerms, len(groupRows))
+	for i, row := range groupRows {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				if c.cachedGroupPerms != nil {
+					return c.cachedGroupPerms
+				}
+				return perms
+			case <-time.After(permsThrottleGap):
+			}
+		}
+
+		sgid := parseInt(row["sgid"])
+		permLines, err := c.exec(ctx, fmt.Sprintf("servergrouppermlist sgid=%d -permsid", sgid))
+		if err != nil {
+			continue
+		}
+		permRows := parseResponseRows(permLines)
+		perms[sgid] = mapGroupPerms(permRows)
+	}
+
+	c.cachedGroupPerms = perms
+	c.permsCachedAt = time.Now()
+	c.logger.Debug("group permissions cache refreshed", slog.Int("groups", len(perms)))
+	return perms
 }
 
 // Close 关闭 ServerQuery 连接。

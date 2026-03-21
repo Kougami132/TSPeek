@@ -28,16 +28,18 @@ func formatCommand(name string, args ...commandArg) string {
 	return builder.String()
 }
 
-func (c *Client) ensureConnected(ctx context.Context) error {
+// ensureConnected establishes a ServerQuery session if not already connected.
+// Returns reconnected=true when a new TCP connection was dialed.
+func (c *Client) ensureConnected(ctx context.Context) (reconnected bool, err error) {
 	if c.conn != nil {
-		return nil
+		return false, nil
 	}
 
 	address := net.JoinHostPort(c.cfg.Host, strconv.Itoa(c.cfg.QueryPort))
 	dialer := net.Dialer{Timeout: dialTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", address)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	reader := bufio.NewReader(conn)
@@ -46,11 +48,11 @@ func (c *Client) ensureConnected(ctx context.Context) error {
 
 	if _, err := c.readLine(); err != nil {
 		c.closeLocked()
-		return fmt.Errorf("failed to read serverquery header: %w", err)
+		return false, fmt.Errorf("failed to read serverquery header: %w", err)
 	}
 	if _, err := c.readLine(); err != nil {
 		c.closeLocked()
-		return fmt.Errorf("failed to read serverquery banner: %w", err)
+		return false, fmt.Errorf("failed to read serverquery banner: %w", err)
 	}
 
 	loginCommand := formatCommand("login",
@@ -59,16 +61,16 @@ func (c *Client) ensureConnected(ctx context.Context) error {
 	)
 	if _, err := c.exec(ctx, loginCommand); err != nil {
 		c.closeLocked()
-		return err
+		return false, err
 	}
 
 	useCommand := formatCommand("use", commandArg{Key: "port", Value: strconv.Itoa(c.cfg.ServerPort)})
 	if _, err := c.exec(ctx, useCommand); err != nil {
 		c.closeLocked()
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 func (c *Client) exec(_ context.Context, command string) ([]string, error) {
