@@ -26,6 +26,7 @@ export interface ServerInfo {
   displayed_clients: number
   max_clients: number
   uptime_seconds: number
+  created_at: number
 }
 
 export interface ChannelInfo {

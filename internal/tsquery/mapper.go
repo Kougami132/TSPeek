@@ -19,6 +19,7 @@ func mapServer(row map[string]string) store.ServerInfo {
 		ClientsOnline:    parseInt(row["virtualserver_clientsonline"]),
 		MaxClients:       parseInt(row["virtualserver_maxclients"]),
 		UptimeSeconds:    parseInt64(row["virtualserver_uptime"]),
+		CreatedAt:        parseInt64(row["virtualserver_created"]),
 	}
 }
 

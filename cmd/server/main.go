@@ -16,7 +16,6 @@ import (
 
 	"tspeek/internal/api"
 	"tspeek/internal/config"
-	"tspeek/internal/icon"
 	"tspeek/internal/store"
 	"tspeek/internal/tsquery"
 )
@@ -33,7 +32,6 @@ const (
 type poller struct {
 	client *tsquery.Client
 	store  *store.SnapshotStore
-	icons  *icon.Service
 	logger *slog.Logger
 }
 
@@ -66,15 +64,6 @@ func (p *poller) poll(ctx context.Context) {
 	latest.Meta.FetchedAt = time.Now().UTC()
 	latest.Meta.LatencyMS = time.Since(started).Milliseconds()
 
-	// 更新 icon service 的已知 key 集合
-	var iconKeys []uint32
-	for _, sg := range latest.ServerGroups {
-		if sg.IconID != 0 {
-			iconKeys = append(iconKeys, sg.IconID)
-		}
-	}
-	p.icons.UpdateKnownKeys(iconKeys)
-
 	p.store.SetReady(latest)
 }
 
@@ -99,12 +88,10 @@ func main() {
 
 	dataStore := store.New()
 	queryClient := tsquery.NewClient(cfg.ServerQuery, logger)
-	iconService := icon.NewService(cfg.ServerQuery, logger)
 
 	p := &poller{
 		client: queryClient,
 		store:  dataStore,
-		icons:  iconService,
 		logger: logger,
 	}
 	go p.run(ctx)
@@ -112,7 +99,6 @@ func main() {
 	apiServer := api.NewServer(api.Options{
 		Logger:     logger,
 		Store:      dataStore,
-		Icons:      iconService,
 		ServerHost: cfg.ServerQuery.Host,
 		ServerPort: cfg.ServerQuery.ServerPort,
 	})

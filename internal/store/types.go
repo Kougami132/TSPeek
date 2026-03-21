@@ -29,6 +29,7 @@ type ServerInfo struct {
 	DisplayedClients int    `json:"displayed_clients"`
 	MaxClients       int    `json:"max_clients"`
 	UptimeSeconds    int64  `json:"uptime_seconds"`
+	CreatedAt        int64  `json:"created_at"`
 }
 
 type ChannelInfo struct {

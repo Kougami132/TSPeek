@@ -12,9 +12,10 @@ import {
   GlobeRegular,
   InfoRegular,
   TagRegular,
+  CalendarRegular,
 } from '@fluentui/react-icons'
 import type { ServerInfo, SnapshotMeta, PublicConfig } from '../types'
-import { formatUptime } from '../utils/tree'
+import { formatUptime, formatAge } from '../utils/tree'
 
 const useStyles = makeStyles({
   card: {
@@ -109,6 +110,17 @@ export function ServerCard({
             运行时间
           </span>
           <span className={styles.statValue}>{formatUptime(server.uptime_seconds)}</span>
+        </div>
+        <div className={styles.statItem}>
+          <span className={styles.statLabel}>
+            <CalendarRegular fontSize={14} />
+            已创建
+          </span>
+          <span className={styles.statValue}>
+            {server.created_at
+              ? formatAge(Math.floor(Date.now() / 1000) - server.created_at)
+              : '未知'}
+          </span>
         </div>
         <div className={styles.statItem}>
           <span className={styles.statLabel}>

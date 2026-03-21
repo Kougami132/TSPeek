@@ -89,3 +89,19 @@ export function formatUptime(seconds: number): string {
   if (parts.length === 0) parts.push(`${seconds} 秒`)
   return parts.join(' ')
 }
+
+/**
+ * 格式化时间跨度（秒 → 年/月/天）
+ */
+export function formatAge(seconds: number): string {
+  if (seconds <= 0) return '0 天'
+  const days = Math.floor(seconds / 86400)
+  const years = Math.floor(days / 365)
+  const months = Math.floor((days % 365) / 30)
+  const remainDays = days % 365 % 30
+  const parts: string[] = []
+  if (years > 0) parts.push(`${years} 年`)
+  if (months > 0) parts.push(`${months} 月`)
+  if (remainDays > 0 || parts.length === 0) parts.push(`${remainDays} 天`)
+  return parts.join(' ')
+}
