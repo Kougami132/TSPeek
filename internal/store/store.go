@@ -140,5 +140,17 @@ func cloneSnapshot(src Snapshot) Snapshot {
 	} else {
 		cloned.Clients = []ClientInfo{}
 	}
+	if src.ServerGroups != nil {
+		cloned.ServerGroups = make([]ServerGroupInfo, len(src.ServerGroups))
+		copy(cloned.ServerGroups, src.ServerGroups)
+	} else {
+		cloned.ServerGroups = []ServerGroupInfo{}
+	}
+	if src.ChannelGroups != nil {
+		cloned.ChannelGroups = make([]ChannelGroupInfo, len(src.ChannelGroups))
+		copy(cloned.ChannelGroups, src.ChannelGroups)
+	} else {
+		cloned.ChannelGroups = []ChannelGroupInfo{}
+	}
 	return cloned
 }

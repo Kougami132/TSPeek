@@ -77,10 +77,17 @@ func (c *Client) Fetch(ctx context.Context) (store.Snapshot, error) {
 		return store.Snapshot{}, err
 	}
 
+	channelGroupLines, err := c.exec(ctx, "channelgrouplist")
+	if err != nil {
+		c.closeLocked()
+		return store.Snapshot{}, err
+	}
+
 	serverRows := parseResponseRows(serverLines)
 	channelRows := parseResponseRows(channelLines)
 	clientRows := parseResponseRows(clientLines)
 	groupRows := parseResponseRows(groupLines)
+	channelGroupRows := parseResponseRows(channelGroupLines)
 
 	if len(serverRows) == 0 {
 		return store.Snapshot{}, fmt.Errorf("serverinfo returned no rows")
@@ -92,11 +99,15 @@ func (c *Client) Fetch(ctx context.Context) (store.Snapshot, error) {
 	channels := mapChannels(channelRows)
 	clients := mapClients(clientRows, allGroupPerms)
 	server.DisplayedClients = len(clients)
+	serverGroups := mapServerGroups(groupRows, allGroupPerms)
+	channelGroups := mapChannelGroups(channelGroupRows)
 
 	return store.Snapshot{
-		Server:   server,
-		Channels: channels,
-		Clients:  clients,
+		Server:        server,
+		Channels:      channels,
+		Clients:       clients,
+		ServerGroups:  serverGroups,
+		ChannelGroups: channelGroups,
 	}, nil
 }
 

@@ -4,6 +4,8 @@ export interface Snapshot {
   server: ServerInfo
   channels: ChannelInfo[]
   clients: ClientInfo[]
+  server_groups: ServerGroupInfo[]
+  channel_groups: ChannelGroupInfo[]
   meta: SnapshotMeta
 }
 
@@ -66,6 +68,22 @@ export interface ClientInfo {
   connected_seconds: number
   server_groups?: string
   channel_group_id: number
+}
+
+export interface ServerGroupInfo {
+  sgid: number
+  name: string
+  sort_id: number
+  icon_id: number
+  icon_url?: string
+}
+
+export interface ChannelGroupInfo {
+  cgid: number
+  name: string
+  sort_id: number
+  icon_id: number
+  icon_url?: string
 }
 
 export interface PublicConfig {

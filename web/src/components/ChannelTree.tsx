@@ -13,7 +13,7 @@ import {
   LockClosedRegular,
   ChevronRightRegular,
 } from '@fluentui/react-icons'
-import type { ChannelInfo, ClientInfo } from '../types'
+import type { ChannelInfo, ClientInfo, ServerGroupInfo, ChannelGroupInfo } from '../types'
 import { buildTree, groupClients } from '../utils/tree'
 import { ClientPersona } from './ClientPersona'
 
@@ -116,12 +116,16 @@ const useStyles = makeStyles({
 interface ChannelTreeProps {
   channels: ChannelInfo[]
   clients: ClientInfo[]
+  serverGroups: ServerGroupInfo[]
+  channelGroups: ChannelGroupInfo[]
 }
 
 interface ChannelNodeProps {
   channel: ChannelInfo
   byParent: Map<number, ChannelInfo[]>
   byChannel: Map<number, ClientInfo[]>
+  serverGroupMap: Map<number, ServerGroupInfo>
+  channelGroupMap: Map<number, ChannelGroupInfo>
   styles: ReturnType<typeof useStyles>
 }
 
@@ -129,6 +133,8 @@ const ChannelNode = memo(function ChannelNode({
   channel,
   byParent,
   byChannel,
+  serverGroupMap,
+  channelGroupMap,
   styles,
 }: ChannelNodeProps) {
   const [isExpanded, setIsExpanded] = useState(true)
@@ -186,7 +192,11 @@ const ChannelNode = memo(function ChannelNode({
             <ul role="group" className={mergeClasses(styles.list, styles.clientGroup)}>
               {clients.map((client) => (
                 <li key={client.id} role="none">
-                  <ClientPersona client={client} />
+                  <ClientPersona
+                    client={client}
+                    serverGroupMap={serverGroupMap}
+                    channelGroupMap={channelGroupMap}
+                  />
                 </li>
               ))}
             </ul>
@@ -199,6 +209,8 @@ const ChannelNode = memo(function ChannelNode({
                   channel={child}
                   byParent={byParent}
                   byChannel={byChannel}
+                  serverGroupMap={serverGroupMap}
+                  channelGroupMap={channelGroupMap}
                   styles={styles}
                 />
               ))}
@@ -210,11 +222,21 @@ const ChannelNode = memo(function ChannelNode({
   )
 })
 
-export function ChannelTree({ channels, clients }: ChannelTreeProps) {
+export function ChannelTree({ channels, clients, serverGroups, channelGroups }: ChannelTreeProps) {
   const styles = useStyles()
 
   const byParent = useMemo(() => buildTree(channels), [channels])
   const byChannel = useMemo(() => groupClients(clients), [clients])
+  const serverGroupMap = useMemo(() => {
+    const map = new Map<number, ServerGroupInfo>()
+    for (const sg of serverGroups) map.set(sg.sgid, sg)
+    return map
+  }, [serverGroups])
+  const channelGroupMap = useMemo(() => {
+    const map = new Map<number, ChannelGroupInfo>()
+    for (const cg of channelGroups) map.set(cg.cgid, cg)
+    return map
+  }, [channelGroups])
   const rootChannels = byParent.get(0) || []
 
   return (
@@ -236,6 +258,8 @@ export function ChannelTree({ channels, clients }: ChannelTreeProps) {
               channel={channel}
               byParent={byParent}
               byChannel={byChannel}
+              serverGroupMap={serverGroupMap}
+              channelGroupMap={channelGroupMap}
               styles={styles}
             />
           ))}

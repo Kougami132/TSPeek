@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"tspeek/internal/icon"
 	"tspeek/internal/store"
 )
 
@@ -18,6 +19,7 @@ type SnapshotSource interface {
 type Server struct {
 	logger     *slog.Logger
 	store      SnapshotSource
+	icons      *icon.Service
 	serverHost string
 	serverPort int
 }
@@ -26,6 +28,7 @@ type Server struct {
 type Options struct {
 	Logger     *slog.Logger
 	Store      SnapshotSource
+	Icons      *icon.Service
 	ServerHost string
 	ServerPort int
 }
@@ -35,6 +38,7 @@ func NewServer(opts Options) *Server {
 	return &Server{
 		logger:     opts.Logger,
 		store:      opts.Store,
+		icons:      opts.Icons,
 		serverHost: opts.ServerHost,
 		serverPort: opts.ServerPort,
 	}
@@ -53,6 +57,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/public-config", s.handlePublicConfig)
 	mux.HandleFunc("/api/v1/snapshot", s.handleSnapshot)
 	mux.HandleFunc("/api/v1/stream", s.handleStream)
+	mux.HandleFunc("/api/v1/icons/", s.handleIcon)
 
 	staticHandler, err := newStaticHandler()
 	if err != nil {

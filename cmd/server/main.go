@@ -16,6 +16,7 @@ import (
 
 	"tspeek/internal/api"
 	"tspeek/internal/config"
+	"tspeek/internal/icon"
 	"tspeek/internal/store"
 	"tspeek/internal/tsquery"
 )
@@ -118,6 +119,7 @@ func main() {
 
 	dataStore := store.New()
 	queryClient := tsquery.NewClient(cfg.ServerQuery, logger)
+	iconService := icon.NewService(cfg.ServerQuery, logger)
 
 	p := &poller{
 		client: queryClient,
@@ -129,6 +131,7 @@ func main() {
 	apiServer := api.NewServer(api.Options{
 		Logger:     logger,
 		Store:      dataStore,
+		Icons:      iconService,
 		ServerHost: cfg.ServerQuery.Host,
 		ServerPort: cfg.ServerQuery.ServerPort,
 	})

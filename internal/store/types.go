@@ -4,10 +4,12 @@ import "time"
 
 // Snapshot 是 ServerQuery 轮询结果的完整快照，供 store 持有、api 序列化、tsquery 产出。
 type Snapshot struct {
-	Server   ServerInfo    `json:"server"`
-	Channels []ChannelInfo `json:"channels"`
-	Clients  []ClientInfo  `json:"clients"`
-	Meta     SnapshotMeta  `json:"meta"`
+	Server        ServerInfo        `json:"server"`
+	Channels      []ChannelInfo     `json:"channels"`
+	Clients       []ClientInfo      `json:"clients"`
+	ServerGroups  []ServerGroupInfo  `json:"server_groups"`
+	ChannelGroups []ChannelGroupInfo `json:"channel_groups"`
+	Meta          SnapshotMeta      `json:"meta"`
 }
 
 type SnapshotMeta struct {
@@ -69,4 +71,20 @@ type ClientInfo struct {
 	ConnectedSeconds int64  `json:"connected_seconds"`
 	ServerGroups     string `json:"server_groups,omitempty"`
 	ChannelGroupID   int    `json:"channel_group_id"`
+}
+
+type ServerGroupInfo struct {
+	SGID    int    `json:"sgid"`
+	Name    string `json:"name"`
+	SortID  int    `json:"sort_id"`
+	IconID  uint32 `json:"icon_id"`
+	IconURL string `json:"icon_url,omitempty"`
+}
+
+type ChannelGroupInfo struct {
+	CGID    int    `json:"cgid"`
+	Name    string `json:"name"`
+	SortID  int    `json:"sort_id"`
+	IconID  uint32 `json:"icon_id"`
+	IconURL string `json:"icon_url,omitempty"`
 }

@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -43,4 +45,28 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(true)
 	_ = encoder.Encode(payload)
+}
+
+func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) {
+	raw := strings.TrimPrefix(r.URL.Path, "/api/v1/icons/")
+	if raw == "" {
+		http.NotFound(w, r)
+		return
+	}
+	iconID, err := strconv.ParseUint(raw, 10, 32)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	item, err := s.icons.GetIcon(r.Context(), uint32(iconID))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", item.ContentType)
+	w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
+	w.Header().Set("Content-Length", strconv.Itoa(len(item.Body)))
+	w.Write(item.Body)
 }

@@ -1,6 +1,7 @@
 package tsquery
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -119,6 +120,72 @@ func mapGroupPerms(rows []map[string]string) groupPerms {
 		}
 	}
 	return p
+}
+
+// normalizeIconID 将 TS3 的 signed iconid 归一化为 uint32。
+// TS3 ServerQuery 返回的 iconid 可能是负数（signed int32 溢出），
+// 实际是 CRC32 值，需要转为 uint32。
+func normalizeIconID(raw int64) uint32 {
+	if raw == 0 {
+		return 0
+	}
+	return uint32(raw)
+}
+
+func mapServerGroups(rows []map[string]string, allGroupPerms map[int]groupPerms) []store.ServerGroupInfo {
+	groups := make([]store.ServerGroupInfo, 0, len(rows))
+	for _, row := range rows {
+		groupType := parseInt(row["type"])
+		if groupType != 1 {
+			continue
+		}
+		sgid := parseInt(row["sgid"])
+		iconID := normalizeIconID(parseInt64(row["iconid"]))
+
+		sg := store.ServerGroupInfo{
+			SGID:   sgid,
+			Name:   row["name"],
+			IconID: iconID,
+		}
+		if p, ok := allGroupPerms[sgid]; ok {
+			sg.SortID = p.sortID
+		}
+		if iconID != 0 {
+			sg.IconURL = fmt.Sprintf("/api/v1/icons/%d", iconID)
+		}
+		groups = append(groups, sg)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].SortID < groups[j].SortID
+	})
+	return groups
+}
+
+func mapChannelGroups(rows []map[string]string) []store.ChannelGroupInfo {
+	groups := make([]store.ChannelGroupInfo, 0, len(rows))
+	for _, row := range rows {
+		groupType := parseInt(row["type"])
+		if groupType != 1 {
+			continue
+		}
+		cgid := parseInt(row["cgid"])
+		iconID := normalizeIconID(parseInt64(row["iconid"]))
+
+		cg := store.ChannelGroupInfo{
+			CGID:   cgid,
+			Name:   row["name"],
+			SortID: parseInt(row["sortid"]),
+			IconID: iconID,
+		}
+		if iconID != 0 {
+			cg.IconURL = fmt.Sprintf("/api/v1/icons/%d", iconID)
+		}
+		groups = append(groups, cg)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].SortID < groups[j].SortID
+	})
+	return groups
 }
 
 func mapClients(rows []map[string]string, allGroupPerms map[int]groupPerms) []store.ClientInfo {

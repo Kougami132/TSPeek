@@ -154,12 +154,19 @@ function Dashboard() {
 
   const channels = snapshot.channels ?? []
   const clients = snapshot.clients ?? []
+  const serverGroups = snapshot.server_groups ?? []
+  const channelGroups = snapshot.channel_groups ?? []
 
   return (
     <>
       <Header publicConfig={publicConfig} />
       <main className={styles.shell}>
-        <ChannelTree channels={channels} clients={clients} />
+        <ChannelTree
+          channels={channels}
+          clients={clients}
+          serverGroups={serverGroups}
+          channelGroups={channelGroups}
+        />
         <div className={styles.sidebar}>
           <ServerCard
             server={snapshot.server}

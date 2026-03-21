@@ -1,10 +1,11 @@
-import { Avatar, Badge, makeStyles, tokens } from '@fluentui/react-components'
+import { useMemo, useState, useCallback } from 'react'
+import { Avatar, Badge, Tooltip, makeStyles, tokens } from '@fluentui/react-components'
 import {
   MicOffRegular,
   SpeakerMuteRegular,
   PersonArrowRightRegular,
 } from '@fluentui/react-icons'
-import type { ClientInfo } from '../types'
+import type { ClientInfo, ServerGroupInfo, ChannelGroupInfo } from '../types'
 
 const useStyles = makeStyles({
   row: {
@@ -28,6 +29,17 @@ const useStyles = makeStyles({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  groupIcons: {
+    display: 'flex',
+    gap: '2px',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  groupIcon: {
+    width: '16px',
+    height: '16px',
+    objectFit: 'contain',
+  },
   icons: {
     display: 'flex',
     gap: tokens.spacingHorizontalXS,
@@ -39,13 +51,29 @@ const useStyles = makeStyles({
 
 interface ClientPersonaProps {
   client: ClientInfo
+  serverGroupMap: Map<number, ServerGroupInfo>
+  channelGroupMap: Map<number, ChannelGroupInfo>
 }
 
-export function ClientPersona({ client }: ClientPersonaProps) {
+export function ClientPersona({ client, serverGroupMap, channelGroupMap }: ClientPersonaProps) {
   const styles = useStyles()
 
-  // 获取初始字母作为头像
   const initials = client.nickname.charAt(0).toUpperCase()
+
+  // Resolve server group icons (only those with icon_url)
+  const serverGroupIcons = useMemo(() => {
+    if (!client.server_groups) return []
+    return client.server_groups
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .map((sgid) => serverGroupMap.get(sgid))
+      .filter((sg): sg is ServerGroupInfo => !!sg && !!sg.icon_url)
+      .sort((a, b) => a.sort_id - b.sort_id)
+  }, [client.server_groups, serverGroupMap])
+
+  // Resolve channel group icon
+  const channelGroup = channelGroupMap.get(client.channel_group_id)
+  const hasChannelGroupIcon = !!channelGroup?.icon_url
 
   return (
     <div className={styles.row}>
@@ -61,6 +89,18 @@ export function ClientPersona({ client }: ClientPersonaProps) {
         }
       />
       <span className={styles.name}>{client.nickname}</span>
+
+      {(serverGroupIcons.length > 0 || hasChannelGroupIcon) && (
+        <span className={styles.groupIcons}>
+          {serverGroupIcons.map((sg) => (
+            <GroupIcon key={sg.sgid} name={sg.name} url={sg.icon_url!} className={styles.groupIcon} />
+          ))}
+          {hasChannelGroupIcon && (
+            <GroupIcon name={channelGroup!.name} url={channelGroup!.icon_url!} className={styles.groupIcon} />
+          )}
+        </span>
+      )}
+
       <span className={styles.icons}>
         {client.input_muted && <MicOffRegular fontSize={14} />}
         {client.output_muted && <SpeakerMuteRegular fontSize={14} />}
@@ -79,5 +119,23 @@ export function ClientPersona({ client }: ClientPersonaProps) {
         )}
       </span>
     </div>
+  )
+}
+
+function GroupIcon({ name, url, className }: { name: string; url: string; className: string }) {
+  const [visible, setVisible] = useState(true)
+  const handleError = useCallback(() => setVisible(false), [])
+
+  if (!visible) return null
+
+  return (
+    <Tooltip content={name} relationship="label">
+      <img
+        src={url}
+        alt={name}
+        className={className}
+        onError={handleError}
+      />
+    </Tooltip>
   )
 }
