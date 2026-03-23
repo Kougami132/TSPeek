@@ -1,6 +1,13 @@
 port: 8080
 log_level: "info"
 
+# [可选] 品牌自定义，所有字段均可省略
+# branding:
+#   favicon_url: "https://example.com/my-favicon.png"
+#   site_title: "我的 TS 服务器"
+#   logo_url: "https://example.com/my-logo.svg"
+#   header_title: "我的 TS 服务器"
+
 serverquery:
   host: "example.com"
   query_port: 10011

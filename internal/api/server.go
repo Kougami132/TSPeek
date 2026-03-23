@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"tspeek/internal/config"
 	"tspeek/internal/icon"
 	"tspeek/internal/store"
 )
@@ -20,6 +21,7 @@ type Server struct {
 	logger     *slog.Logger
 	store      SnapshotSource
 	icons      *icon.Service
+	branding   config.BrandingConfig
 	serverHost string
 	serverPort int
 }
@@ -29,6 +31,7 @@ type Options struct {
 	Logger     *slog.Logger
 	Store      SnapshotSource
 	Icons      *icon.Service
+	Branding   config.BrandingConfig
 	ServerHost string
 	ServerPort int
 }
@@ -39,6 +42,7 @@ func NewServer(opts Options) *Server {
 		logger:     opts.Logger,
 		store:      opts.Store,
 		icons:      opts.Icons,
+		branding:   opts.Branding,
 		serverHost: opts.ServerHost,
 		serverPort: opts.ServerPort,
 	}

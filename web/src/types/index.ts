@@ -86,9 +86,17 @@ export interface ChannelGroupInfo {
   icon_url?: string
 }
 
+export interface Branding {
+  favicon_url: string
+  site_title: string
+  logo_url: string
+  header_title: string
+}
+
 export interface PublicConfig {
   server_host: string
   server_port: number
+  branding: Branding
 }
 
 export type ConnectionState = 'connecting' | 'live' | 'stale' | 'waiting'

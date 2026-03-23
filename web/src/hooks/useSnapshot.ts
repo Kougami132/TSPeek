@@ -12,6 +12,12 @@ interface UseSnapshotReturn {
 const defaultPublicConfig: PublicConfig = {
   server_host: '',
   server_port: 0,
+  branding: {
+    favicon_url: '',
+    site_title: 'TSPeek',
+    logo_url: '',
+    header_title: 'TSPeek',
+  },
 }
 
 const fallbackIntervalMs = 5000

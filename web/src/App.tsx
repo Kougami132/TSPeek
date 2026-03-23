@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   FluentProvider,
   makeStyles,
@@ -98,6 +99,7 @@ const useStyles = makeStyles({
 
 function Header({ publicConfig }: { publicConfig: PublicConfig }) {
   const styles = useStyles()
+  const { branding } = publicConfig
 
   const host = publicConfig.server_host
   const port = publicConfig.server_port
@@ -105,13 +107,16 @@ function Header({ publicConfig }: { publicConfig: PublicConfig }) {
     ? `ts3server://${host}${port ? `?port=${port}` : ''}`
     : undefined
 
+  const logoSrc = branding.logo_url || '/favicon.svg'
+  const title = branding.header_title
+
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
         <div className={styles.logoContainer}>
-          <img src="/favicon.svg" alt="TSPeek" className={styles.logo} />
+          <img src={logoSrc} alt={title} className={styles.logo} />
           <Text size={500} weight="bold">
-            TSPeek
+            {title}
           </Text>
         </div>
         {joinUrl ? (
@@ -140,6 +145,25 @@ function Header({ publicConfig }: { publicConfig: PublicConfig }) {
 function Dashboard() {
   const styles = useStyles()
   const { snapshot, errorMessage, publicConfig } = useSnapshot()
+
+  // 动态更新页面标题
+  useEffect(() => {
+    document.title = publicConfig.branding.site_title
+  }, [publicConfig.branding.site_title])
+
+  // 动态更新 favicon
+  useEffect(() => {
+    const faviconUrl = publicConfig.branding.favicon_url
+    if (!faviconUrl) return
+
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
+    }
+    link.href = faviconUrl
+  }, [publicConfig.branding.favicon_url])
 
   if (!snapshot) {
     return (

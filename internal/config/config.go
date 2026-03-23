@@ -12,6 +12,7 @@ import (
 type fileConfig struct {
 	Port        int             `yaml:"port"`
 	LogLevel    string          `yaml:"log_level"`
+	Branding    fileBranding    `yaml:"branding"`
 	ServerQuery fileServerQuery `yaml:"serverquery"`
 }
 
@@ -23,10 +24,18 @@ type fileServerQuery struct {
 	ServerPort int    `yaml:"server_port"`
 }
 
+type fileBranding struct {
+	FaviconURL  string `yaml:"favicon_url"`
+	SiteTitle   string `yaml:"site_title"`
+	LogoURL     string `yaml:"logo_url"`
+	HeaderTitle string `yaml:"header_title"`
+}
+
 // Config 是运行时配置，由 Load 函数从 YAML 文件解析并校验后生成。
 type Config struct {
 	Port        int
 	LogLevel    slog.Level
+	Branding    BrandingConfig
 	ServerQuery ServerQueryConfig
 }
 
@@ -36,6 +45,13 @@ type ServerQueryConfig struct {
 	Username   string
 	Password   string
 	ServerPort int
+}
+
+type BrandingConfig struct {
+	FaviconURL  string
+	SiteTitle   string
+	LogoURL     string
+	HeaderTitle string
 }
 
 // Load 从指定路径加载 YAML 配置文件并返回校验后的运行时配置。
@@ -84,9 +100,24 @@ func Load(path string) (Config, error) {
 		port = 8080
 	}
 
+	siteTitle := raw.Branding.SiteTitle
+	if siteTitle == "" {
+		siteTitle = "TSPeek"
+	}
+	headerTitle := raw.Branding.HeaderTitle
+	if headerTitle == "" {
+		headerTitle = "TSPeek"
+	}
+
 	return Config{
 		Port:     port,
 		LogLevel: level,
+		Branding: BrandingConfig{
+			FaviconURL:  strings.TrimSpace(raw.Branding.FaviconURL),
+			SiteTitle:   siteTitle,
+			LogoURL:     strings.TrimSpace(raw.Branding.LogoURL),
+			HeaderTitle: headerTitle,
+		},
 		ServerQuery: ServerQueryConfig{
 			Host:       strings.TrimSpace(raw.ServerQuery.Host),
 			QueryPort:  raw.ServerQuery.QueryPort,

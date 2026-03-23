@@ -132,6 +132,7 @@ func main() {
 		Logger:     logger,
 		Store:      dataStore,
 		Icons:      iconService,
+		Branding:   cfg.Branding,
 		ServerHost: cfg.ServerQuery.Host,
 		ServerPort: cfg.ServerQuery.ServerPort,
 	})

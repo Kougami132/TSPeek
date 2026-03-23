@@ -26,6 +26,12 @@ func (s *Server) handlePublicConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, PublicConfigResponse{
 		ServerHost: s.serverHost,
 		ServerPort: s.serverPort,
+		Branding: BrandingResponse{
+			FaviconURL:  s.branding.FaviconURL,
+			SiteTitle:   s.branding.SiteTitle,
+			LogoURL:     s.branding.LogoURL,
+			HeaderTitle: s.branding.HeaderTitle,
+		},
 	})
 }
 
