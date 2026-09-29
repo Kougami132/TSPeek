@@ -35,7 +35,6 @@ const (
 type poller struct {
 	client           *tsquery.Client
 	store            *store.SnapshotStore
-	activities       *activity.Service
 	logger           *slog.Logger
 	consecutiveFails int
 }
@@ -98,11 +97,6 @@ func (p *poller) poll(ctx context.Context) {
 	latest.Meta.LatencyMS = time.Since(started).Milliseconds()
 
 	p.store.SetReady(latest)
-	if p.activities != nil {
-		if err := p.activities.ProcessSnapshot(latest); err != nil {
-			p.logger.Error("failed to process snapshot for activity log", slog.Any("error", err))
-		}
-	}
 }
 
 func main() {
@@ -130,12 +124,19 @@ func main() {
 	iconService := icon.NewService(cfg.ServerQuery, logger)
 
 	p := &poller{
-		client:     queryClient,
-		store:      dataStore,
-		activities: activityService,
-		logger:     logger,
+		client: queryClient,
+		store:  dataStore,
+		logger: logger,
 	}
 	go p.run(ctx)
+
+	eventListener := tsquery.NewEventListener(tsquery.EventListenerOptions{
+		Config:   cfg.ServerQuery,
+		Logger:   logger,
+		Resolver: dataStore,
+		Recorder: activityService,
+	})
+	go eventListener.Run(ctx)
 
 	apiServer := api.NewServer(api.Options{
 		Logger:     logger,
@@ -163,6 +164,7 @@ func main() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		eventListener.Close()
 		queryClient.Close()
 		_ = server.Shutdown(shutdownCtx)
 	}()

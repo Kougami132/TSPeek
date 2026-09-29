@@ -3,6 +3,7 @@ package activity
 import (
 	"log/slog"
 	"sync"
+	"time"
 
 	"tspeek/internal/store"
 )
@@ -15,6 +16,7 @@ type Service struct {
 	mu          sync.Mutex
 	subscribers map[int]chan []Event
 	nextSub     int
+	lastID      int64
 }
 
 // NewService 创建 Service。
@@ -30,8 +32,24 @@ func NewService(logPath string, logger *slog.Logger) *Service {
 // ProcessSnapshot 处理新快照，持久化事件并广播。
 func (s *Service) ProcessSnapshot(snap store.Snapshot) error {
 	events := s.tracker.ProcessSnapshot(snap)
+	return s.RecordEvents(events)
+}
+
+// RecordEvents 记录活动事件列表，持久化并广播给所有订阅者。
+// 对于 ID 为 0 或 Time 为零值的事件，会自动赋予唯一的单调递增 ID 与 UTC 时间戳。
+func (s *Service) RecordEvents(events []Event) error {
 	if len(events) == 0 {
 		return nil
+	}
+
+	now := time.Now().UTC()
+	for i := range events {
+		if events[i].Time.IsZero() {
+			events[i].Time = now
+		}
+		if events[i].ID == 0 {
+			events[i].ID = s.nextID()
+		}
 	}
 
 	if err := s.storage.Append(events); err != nil {
@@ -41,6 +59,17 @@ func (s *Service) ProcessSnapshot(snap store.Snapshot) error {
 
 	s.broadcast(events)
 	return nil
+}
+
+func (s *Service) nextID() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	nowMicros := time.Now().UnixMicro()
+	if nowMicros <= s.lastID {
+		nowMicros = s.lastID + 1
+	}
+	s.lastID = nowMicros
+	return nowMicros
 }
 
 // GetActivities 分页获取活动记录。

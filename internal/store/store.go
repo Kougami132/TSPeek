@@ -1,6 +1,9 @@
 package store
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // PublicUpstreamError 是暴露给前端的通用上游错误消息。
 const PublicUpstreamError = "upstream_unavailable"
@@ -27,6 +30,23 @@ func (s *SnapshotStore) Ready() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.snapshot != nil
+}
+
+// ResolveChannelName 返回指定 ID 的频道名称；若不存在或未就绪则返回 "Channel #<id>"。
+func (s *SnapshotStore) ResolveChannelName(id int) string {
+	if s == nil {
+		return fmt.Sprintf("Channel #%d", id)
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.snapshot != nil {
+		for _, ch := range s.snapshot.Channels {
+			if ch.ID == id && ch.Name != "" {
+				return ch.Name
+			}
+		}
+	}
+	return fmt.Sprintf("Channel #%d", id)
 }
 
 // LastErr 返回最近一次轮询错误消息。

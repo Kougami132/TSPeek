@@ -1,0 +1,3 @@
+# Event-Driven ServerQuery Notification Logging
+
+We chose to replace periodic snapshot-diffing with a dedicated, persistent ServerQuery event listener connection (`servernotifyregister event=server` and `event=channel id=0`) to capture client activities. Snapshot polling (every 5 seconds) cannot reliably observe transient sessions where clients connect and disconnect within a single polling interval, and aggressive polling risks triggering ServerQuery flood bans (`error id=524`). A dedicated event stream provides sub-second fidelity for rapid joins, leaves, moves, and renames with strict cold-baseline silence, while the main polling connection remains solely responsible for periodic channel tree and server status snapshots.

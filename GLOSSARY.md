@@ -19,3 +19,8 @@ _Avoid_: Action, operation, notification
 **Client Identity**:
 以 TeamSpeak 唯一身份标识（UID）为核心的用户凭证，用于在昵称修改和同名场景下唯一识别特定客户端。
 _Avoid_: DatabaseID, Nickname
+
+**Query Notification**:
+TeamSpeak ServerQuery 传输层推送的原生异步通知消息（如 `notifycliententerview`, `notifyclientleftview`），属于协议传输实现细节。系统将其单向转换并铸造为业务领域的 `Activity Event`。
+_Avoid_: Event, Signal
+

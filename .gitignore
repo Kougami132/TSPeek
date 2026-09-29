@@ -1,7 +1,10 @@
 .ace-tool/
 .claude/
 
-# Go
+# Logs
+*.log
+
+
 tspeek
 *.exe
 
