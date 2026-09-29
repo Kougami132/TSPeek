@@ -97,6 +97,16 @@ export function useSnapshot(): UseSnapshotReturn {
         stopFallback()
       })
 
+      es.addEventListener('activity', (event) => {
+        if (closedRef.current) return
+        try {
+          const payload = JSON.parse(event.data)
+          window.dispatchEvent(new CustomEvent('tspeek:activity', { detail: payload }))
+        } catch {
+          // 忽略格式异常的数据
+        }
+      })
+
       es.onerror = () => {
         if (closedRef.current) return
         setConnectionState('waiting')

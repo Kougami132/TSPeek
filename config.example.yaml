@@ -1,5 +1,6 @@
 port: 8080
 log_level: "info"
+activity_log: "activity.log"
 
 # [可选] 品牌自定义，所有字段均可省略
 # branding:

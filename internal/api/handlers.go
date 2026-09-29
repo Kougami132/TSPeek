@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"tspeek/internal/activity"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -42,6 +44,36 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, latest)
+}
+
+func (s *Server) handleActivities(w http.ResponseWriter, r *http.Request) {
+	if s.activities == nil {
+		writeJSON(w, http.StatusOK, activity.PageResult{Items: []activity.Event{}})
+		return
+	}
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	pageSize := 50
+	if ps := r.URL.Query().Get("page_size"); ps != "" {
+		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 {
+			pageSize = parsed
+		}
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	result, err := s.activities.GetActivities(page, pageSize)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, APIError{Error: "failed_to_fetch_activities"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

@@ -12,6 +12,7 @@ import (
 type fileConfig struct {
 	Port        int             `yaml:"port"`
 	LogLevel    string          `yaml:"log_level"`
+	ActivityLog string          `yaml:"activity_log"`
 	Branding    fileBranding    `yaml:"branding"`
 	ServerQuery fileServerQuery `yaml:"serverquery"`
 }
@@ -35,6 +36,7 @@ type fileBranding struct {
 type Config struct {
 	Port        int
 	LogLevel    slog.Level
+	ActivityLog string
 	Branding    BrandingConfig
 	ServerQuery ServerQueryConfig
 }
@@ -100,6 +102,11 @@ func Load(path string) (Config, error) {
 		port = 8080
 	}
 
+	activityLog := strings.TrimSpace(raw.ActivityLog)
+	if activityLog == "" {
+		activityLog = "activity.log"
+	}
+
 	siteTitle := raw.Branding.SiteTitle
 	if siteTitle == "" {
 		siteTitle = "TSPeek"
@@ -110,8 +117,9 @@ func Load(path string) (Config, error) {
 	}
 
 	return Config{
-		Port:     port,
-		LogLevel: level,
+		Port:        port,
+		LogLevel:    level,
+		ActivityLog: activityLog,
 		Branding: BrandingConfig{
 			FaviconURL:  strings.TrimSpace(raw.Branding.FaviconURL),
 			SiteTitle:   siteTitle,

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"tspeek/internal/activity"
 	"tspeek/internal/config"
 	"tspeek/internal/icon"
 	"tspeek/internal/store"
@@ -16,10 +17,17 @@ type SnapshotSource interface {
 	Subscribe() (<-chan store.Snapshot, func())
 }
 
+// ActivitySource 定义了 API 层对活动记录的最小接口。
+type ActivitySource interface {
+	GetActivities(page, pageSize int) (activity.PageResult, error)
+	Subscribe() (<-chan []activity.Event, func())
+}
+
 // Server 是 HTTP API 服务器。
 type Server struct {
 	logger     *slog.Logger
 	store      SnapshotSource
+	activities ActivitySource
 	icons      *icon.Service
 	branding   config.BrandingConfig
 	serverHost string
@@ -30,6 +38,7 @@ type Server struct {
 type Options struct {
 	Logger     *slog.Logger
 	Store      SnapshotSource
+	Activities ActivitySource
 	Icons      *icon.Service
 	Branding   config.BrandingConfig
 	ServerHost string
@@ -41,6 +50,7 @@ func NewServer(opts Options) *Server {
 	return &Server{
 		logger:     opts.Logger,
 		store:      opts.Store,
+		activities: opts.Activities,
 		icons:      opts.Icons,
 		branding:   opts.Branding,
 		serverHost: opts.ServerHost,
@@ -60,6 +70,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("/readyz", s.handleReady)
 	mux.HandleFunc("/api/v1/public-config", s.handlePublicConfig)
 	mux.HandleFunc("/api/v1/snapshot", s.handleSnapshot)
+	mux.HandleFunc("/api/v1/activities", s.handleActivities)
 	mux.HandleFunc("/api/v1/stream", s.handleStream)
 	mux.HandleFunc("/api/v1/icons/", s.handleIcon)
 

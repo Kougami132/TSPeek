@@ -100,3 +100,27 @@ export interface PublicConfig {
 }
 
 export type ConnectionState = 'connecting' | 'live' | 'stale' | 'waiting'
+
+export type ActivityAction = 'join' | 'leave' | 'move' | 'rename'
+
+export interface ActivityEvent {
+  id: number
+  time: string
+  action: ActivityAction
+  uid: string
+  nickname: string
+  target_nickname: string
+  channel_id: number
+  channel_name: string
+  from_channel_id: number
+  from_channel_name: string
+}
+
+export interface ActivityPage {
+  items: ActivityEvent[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+

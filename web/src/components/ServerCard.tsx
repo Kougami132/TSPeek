@@ -60,6 +60,7 @@ interface ServerCardProps {
 
 export function ServerCard({
   server,
+  meta,
   publicConfig,
 }: ServerCardProps) {
   const styles = useStyles()
@@ -118,7 +119,11 @@ export function ServerCard({
           </span>
           <span className={styles.statValue}>
             {server.created_at
-              ? formatAge(Math.floor(Date.now() / 1000) - server.created_at)
+              ? formatAge(
+                  Math.floor(
+                    (meta.fetched_at ? new Date(meta.fetched_at).getTime() : 0) / 1000
+                  ) - server.created_at
+                )
               : '未知'}
           </span>
         </div>

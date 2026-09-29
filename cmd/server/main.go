@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"tspeek/internal/activity"
 	"tspeek/internal/api"
 	"tspeek/internal/config"
 	"tspeek/internal/icon"
@@ -34,6 +35,7 @@ const (
 type poller struct {
 	client           *tsquery.Client
 	store            *store.SnapshotStore
+	activities       *activity.Service
 	logger           *slog.Logger
 	consecutiveFails int
 }
@@ -96,6 +98,11 @@ func (p *poller) poll(ctx context.Context) {
 	latest.Meta.LatencyMS = time.Since(started).Milliseconds()
 
 	p.store.SetReady(latest)
+	if p.activities != nil {
+		if err := p.activities.ProcessSnapshot(latest); err != nil {
+			p.logger.Error("failed to process snapshot for activity log", slog.Any("error", err))
+		}
+	}
 }
 
 func main() {
@@ -118,19 +125,22 @@ func main() {
 	defer stop()
 
 	dataStore := store.New()
+	activityService := activity.NewService(cfg.ActivityLog, logger)
 	queryClient := tsquery.NewClient(cfg.ServerQuery, logger)
 	iconService := icon.NewService(cfg.ServerQuery, logger)
 
 	p := &poller{
-		client: queryClient,
-		store:  dataStore,
-		logger: logger,
+		client:     queryClient,
+		store:      dataStore,
+		activities: activityService,
+		logger:     logger,
 	}
 	go p.run(ctx)
 
 	apiServer := api.NewServer(api.Options{
 		Logger:     logger,
 		Store:      dataStore,
+		Activities: activityService,
 		Icons:      iconService,
 		Branding:   cfg.Branding,
 		ServerHost: cfg.ServerQuery.Host,

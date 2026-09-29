@@ -6,12 +6,18 @@ import {
   Button,
   Text,
   Card,
+  TabList,
+  Tab,
+  type SelectTabData,
+  type TabValue,
 } from '@fluentui/react-components'
-import { PlugConnectedRegular, ClockRegular } from '@fluentui/react-icons'
+import { PlugConnectedRegular, ClockRegular, ChannelRegular, HistoryRegular } from '@fluentui/react-icons'
+import { useState } from 'react'
 import { tsPeekTheme } from './theme'
 import { useSnapshot } from './hooks/useSnapshot'
 import { ServerCard } from './components/ServerCard'
 import { ChannelTree } from './components/ChannelTree'
+import { ActivityLog } from './components/ActivityLog'
 import { Loading } from './components/Loading'
 import type { PublicConfig } from './types'
 import { formatTime } from './utils/tree'
@@ -44,6 +50,12 @@ const useStyles = makeStyles({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: tokens.spacingHorizontalM,
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalL,
   },
   logoContainer: {
     display: 'flex',
@@ -97,7 +109,15 @@ const useStyles = makeStyles({
   },
 })
 
-function Header({ publicConfig }: { publicConfig: PublicConfig }) {
+function Header({
+  publicConfig,
+  selectedTab,
+  onTabSelect,
+}: {
+  publicConfig: PublicConfig
+  selectedTab: TabValue
+  onTabSelect: (data: SelectTabData) => void
+}) {
   const styles = useStyles()
   const { branding } = publicConfig
 
@@ -113,11 +133,24 @@ function Header({ publicConfig }: { publicConfig: PublicConfig }) {
   return (
     <header className={styles.header}>
       <div className={styles.headerContent}>
-        <div className={styles.logoContainer}>
-          <img src={logoSrc} alt={title} className={styles.logo} />
-          <Text size={500} weight="bold">
-            {title}
-          </Text>
+        <div className={styles.headerLeft}>
+          <div className={styles.logoContainer}>
+            <img src={logoSrc} alt={title} className={styles.logo} />
+            <Text size={500} weight="bold">
+              {title}
+            </Text>
+          </div>
+          <TabList
+            selectedValue={selectedTab}
+            onTabSelect={(_, data) => onTabSelect(data)}
+          >
+            <Tab value="channels" icon={<ChannelRegular />}>
+              实时频道
+            </Tab>
+            <Tab value="activities" icon={<HistoryRegular />}>
+              活动记录
+            </Tab>
+          </TabList>
         </div>
         {joinUrl ? (
           <Button
@@ -144,6 +177,7 @@ function Header({ publicConfig }: { publicConfig: PublicConfig }) {
 
 function Dashboard() {
   const styles = useStyles()
+  const [selectedTab, setSelectedTab] = useState<TabValue>('channels')
   const { snapshot, errorMessage, publicConfig } = useSnapshot()
 
   // 动态更新页面标题
@@ -168,7 +202,11 @@ function Dashboard() {
   if (!snapshot) {
     return (
       <>
-        <Header publicConfig={publicConfig} />
+        <Header
+          publicConfig={publicConfig}
+          selectedTab={selectedTab}
+          onTabSelect={(data) => setSelectedTab(data.value)}
+        />
         <div className={styles.loadingShell}>
           <Loading errorMessage={errorMessage} />
         </div>
@@ -183,14 +221,22 @@ function Dashboard() {
 
   return (
     <>
-      <Header publicConfig={publicConfig} />
+      <Header
+        publicConfig={publicConfig}
+        selectedTab={selectedTab}
+        onTabSelect={(data) => setSelectedTab(data.value)}
+      />
       <main className={styles.shell}>
-        <ChannelTree
-          channels={channels}
-          clients={clients}
-          serverGroups={serverGroups}
-          channelGroups={channelGroups}
-        />
+        {selectedTab === 'channels' ? (
+          <ChannelTree
+            channels={channels}
+            clients={clients}
+            serverGroups={serverGroups}
+            channelGroups={channelGroups}
+          />
+        ) : (
+          <ActivityLog />
+        )}
         <div className={styles.sidebar}>
           <ServerCard
             server={snapshot.server}
