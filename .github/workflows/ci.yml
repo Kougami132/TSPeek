@@ -16,15 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          check-latest: true
-
-      - name: Run Go tests
-        run: go test -v ./cmd/... ./internal/...
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -46,6 +37,20 @@ jobs:
       - name: Build Frontend
         working-directory: web
         run: pnpm build
+
+      - name: Copy Frontend Assets to Embed Directory
+        run: |
+          rm -rf internal/api/dist
+          cp -r web/dist internal/api/dist
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          check-latest: true
+
+      - name: Run Go tests
+        run: go test -v ./cmd/... ./internal/...
 
   docker-dry-run:
     name: Docker Build Dry-Run
