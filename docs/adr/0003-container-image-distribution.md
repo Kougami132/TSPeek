@@ -1,0 +1,3 @@
+# Dual-Registry Container Distribution with Native Cross-Compilation
+
+We chose to publish release container images simultaneously to both Docker Hub and GitHub Container Registry (GHCR) upon semantic version tag pushes (`v*`), while optimizing multi-architecture builds (`linux/amd64` and `linux/arm64`) using Go native cross-compilation within Dockerfile (`--platform=$BUILDPLATFORM` and `TARGETARCH`). Dual-registry publishing provides maximum ecosystem discoverability on Docker Hub while guaranteeing rate-limit immunity via GHCR, and Go-native cross-compilation avoids prolonged QEMU emulation overhead for frontend and compiler toolchains during CI.
