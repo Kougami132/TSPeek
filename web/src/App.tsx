@@ -11,7 +11,7 @@ import {
   type SelectTabData,
   type TabValue,
 } from '@fluentui/react-components'
-import { PlugConnectedRegular, ClockRegular, ChannelRegular, HistoryRegular } from '@fluentui/react-icons'
+import { PlugConnectedRegular, ClockRegular, ChannelRegular, HistoryRegular, GlobeRegular } from '@fluentui/react-icons'
 import { useState } from 'react'
 import { tsPeekTheme } from './theme'
 import { useSnapshot } from './hooks/useSnapshot'
@@ -56,6 +56,12 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalL,
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    flexShrink: 0,
   },
   logoContainer: {
     display: 'flex',
@@ -126,6 +132,7 @@ function Header({
   const joinUrl = host
     ? `ts3server://${host}${port ? `?port=${port}` : ''}`
     : undefined
+  const webClientUrl = publicConfig.web_client.url
 
   const logoSrc = branding.logo_url || '/favicon.svg'
   const title = branding.header_title
@@ -152,24 +159,38 @@ function Header({
             </Tab>
           </TabList>
         </div>
-        {joinUrl ? (
-          <Button
-            as="a"
-            appearance="primary"
-            icon={<PlugConnectedRegular />}
-            href={joinUrl}
-          >
-            加入频道
-          </Button>
-        ) : (
-          <Button
-            appearance="primary"
-            icon={<PlugConnectedRegular />}
-            disabled
-          >
-            加入频道
-          </Button>
-        )}
+        <div className={styles.headerActions}>
+          {webClientUrl ? (
+            <Button
+              as="a"
+              appearance="secondary"
+              icon={<GlobeRegular />}
+              href={webClientUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              网页加入
+            </Button>
+          ) : null}
+          {joinUrl ? (
+            <Button
+              as="a"
+              appearance="primary"
+              icon={<PlugConnectedRegular />}
+              href={joinUrl}
+            >
+              加入频道
+            </Button>
+          ) : (
+            <Button
+              appearance="primary"
+              icon={<PlugConnectedRegular />}
+              disabled
+            >
+              加入频道
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   )

@@ -25,36 +25,39 @@ type ActivitySource interface {
 
 // Server 是 HTTP API 服务器。
 type Server struct {
-	logger     *slog.Logger
-	store      SnapshotSource
-	activities ActivitySource
-	icons      *icon.Service
-	branding   config.BrandingConfig
-	serverHost string
-	serverPort int
+	logger       *slog.Logger
+	store        SnapshotSource
+	activities   ActivitySource
+	icons        *icon.Service
+	branding     config.BrandingConfig
+	webClientURL string
+	serverHost   string
+	serverPort   int
 }
 
 // Options 是创建 Server 所需的选项。
 type Options struct {
-	Logger     *slog.Logger
-	Store      SnapshotSource
-	Activities ActivitySource
-	Icons      *icon.Service
-	Branding   config.BrandingConfig
-	ServerHost string
-	ServerPort int
+	Logger       *slog.Logger
+	Store        SnapshotSource
+	Activities   ActivitySource
+	Icons        *icon.Service
+	Branding     config.BrandingConfig
+	WebClientURL string
+	ServerHost   string
+	ServerPort   int
 }
 
 // NewServer 创建一个新的 API Server。
 func NewServer(opts Options) *Server {
 	return &Server{
-		logger:     opts.Logger,
-		store:      opts.Store,
-		activities: opts.Activities,
-		icons:      opts.Icons,
-		branding:   opts.Branding,
-		serverHost: opts.ServerHost,
-		serverPort: opts.ServerPort,
+		logger:       opts.Logger,
+		store:        opts.Store,
+		activities:   opts.Activities,
+		icons:        opts.Icons,
+		branding:     opts.Branding,
+		webClientURL: opts.WebClientURL,
+		serverHost:   opts.ServerHost,
+		serverPort:   opts.ServerPort,
 	}
 }
 

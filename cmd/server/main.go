@@ -141,13 +141,14 @@ func main() {
 	go p.run(ctx)
 
 	apiServer := api.NewServer(api.Options{
-		Logger:     logger,
-		Store:      dataStore,
-		Activities: activityService,
-		Icons:      iconService,
-		Branding:   cfg.Branding,
-		ServerHost: cfg.ServerQuery.Host,
-		ServerPort: cfg.ServerQuery.ServerPort,
+		Logger:       logger,
+		Store:        dataStore,
+		Activities:   activityService,
+		Icons:        iconService,
+		Branding:     cfg.Branding,
+		WebClientURL: cfg.WebClient.URL,
+		ServerHost:   cfg.ServerQuery.Host,
+		ServerPort:   cfg.ServerQuery.ServerPort,
 	})
 
 	listenAddr := ":" + strconv.Itoa(cfg.Port)

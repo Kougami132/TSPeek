@@ -18,6 +18,9 @@ const defaultPublicConfig: PublicConfig = {
     logo_url: '',
     header_title: 'TSPeek',
   },
+  web_client: {
+    url: '',
+  },
 }
 
 const fallbackIntervalMs = 5000

@@ -34,6 +34,9 @@ func (s *Server) handlePublicConfig(w http.ResponseWriter, _ *http.Request) {
 			LogoURL:     s.branding.LogoURL,
 			HeaderTitle: s.branding.HeaderTitle,
 		},
+		WebClient: WebClientResponse{
+			URL: s.webClientURL,
+		},
 	})
 }
 

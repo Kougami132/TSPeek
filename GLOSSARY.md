@@ -32,3 +32,10 @@ _Avoid_: Query Bot, Query Connection, Query Account
 用于在 TeamSpeak 虚拟服务器上进行身份认证的凭证（用户名与密码）。
 _Avoid_: User, Login, Bot Account
 
+**Native Join Link**:
+指向 `ts3server://` 深链的地址，点击后由操作系统调起本机已安装的原生 TeamSpeak 客户端，全程不经过浏览器。
+_Avoid_: Join URL, TS3 Link, Client Link
+
+**Web Client Link**:
+由部署方配置的网页版 TeamSpeak 客户端地址。TSPeek 原样透传该地址，点击后在新标签页打开；未配置即表示该入口不存在。
+_Avoid_: Web Join URL, Browser Link, Web Client URL

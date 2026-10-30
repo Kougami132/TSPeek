@@ -9,6 +9,11 @@ activity_log: "activity.log"
 #   logo_url: "https://example.com/my-logo.svg"
 #   header_title: "我的 TS 服务器"
 
+# [可选] 网页版 TeamSpeak 客户端入口，留空则不显示「网页加入」按钮
+# 必须是绝对的 http(s) 地址，TSPeek 原样透传、不做拼接
+# web_client:
+#   url: "https://web.teamspeak.com/"
+
 serverquery:
   host: "example.com"
   query_port: 10011

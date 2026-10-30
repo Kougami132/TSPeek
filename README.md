@@ -8,6 +8,7 @@ TeamSpeak 服务器实时监控仪表板。通过 ServerQuery 协议连接 TeamS
 - 频道树形结构展示，包含各频道内的客户端信息
 - 客户端详细状态显示（麦克风、扬声器、离开状态等）
 - 基于 Server-Sent Events (SSE) 的实时数据推送
+- 一键调起原生 TeamSpeak 客户端，可选配置网页版客户端入口
 - 单二进制部署，前端资源内嵌
 - 支持健康检查端点（`/healthz`、`/readyz`）
 
@@ -74,7 +75,14 @@ serverquery:
   username: "serverquery_user"
   password: "change-me"
   server_port: 9987              # TeamSpeak 服务端口
+
+# [可选] 网页版客户端入口，留空则不显示「网页加入」按钮
+# 必须是绝对的 http(s) 地址，TSPeek 原样透传、不做拼接
+web_client:
+  url: "https://web.teamspeak.com/"
 ```
+
+`web_client.url` 为空或整段省略时，仪表板右上角只保留调起原生客户端的「加入频道」按钮；配置后其左侧会出现在新标签页打开该地址的「网页加入」按钮。地址在启动时校验，非绝对的 http(s) 地址会导致启动失败。
 
 ## Docker 部署
 

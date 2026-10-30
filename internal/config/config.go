@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 
@@ -14,6 +15,7 @@ type fileConfig struct {
 	LogLevel    string          `yaml:"log_level"`
 	ActivityLog string          `yaml:"activity_log"`
 	Branding    fileBranding    `yaml:"branding"`
+	WebClient   fileWebClient   `yaml:"web_client"`
 	ServerQuery fileServerQuery `yaml:"serverquery"`
 }
 
@@ -33,12 +35,17 @@ type fileBranding struct {
 	HeaderTitle string `yaml:"header_title"`
 }
 
+type fileWebClient struct {
+	URL string `yaml:"url"`
+}
+
 // Config 是运行时配置，由 Load 函数从 YAML 文件解析并校验后生成。
 type Config struct {
 	Port        int
 	LogLevel    slog.Level
 	ActivityLog string
 	Branding    BrandingConfig
+	WebClient   WebClientConfig
 	ServerQuery ServerQueryConfig
 }
 
@@ -56,6 +63,12 @@ type BrandingConfig struct {
 	SiteTitle   string
 	LogoURL     string
 	HeaderTitle string
+}
+
+// WebClientConfig 描述可选的网页版 TeamSpeak 客户端入口。
+// URL 为空表示未启用该入口，前端不会渲染对应按钮。
+type WebClientConfig struct {
+	URL string
 }
 
 // Load 从指定路径加载 YAML 配置文件并返回校验后的运行时配置。
@@ -84,6 +97,11 @@ func Load(path string) (Config, error) {
 	}
 	if raw.ServerQuery.ServerPort <= 0 {
 		return Config{}, fmt.Errorf("serverquery.server_port is required")
+	}
+
+	webClientURL, err := parseWebClientURL(raw.WebClient.URL)
+	if err != nil {
+		return Config{}, err
 	}
 
 	level := slog.LevelInfo
@@ -133,6 +151,9 @@ func Load(path string) (Config, error) {
 			LogoURL:     strings.TrimSpace(raw.Branding.LogoURL),
 			HeaderTitle: headerTitle,
 		},
+		WebClient: WebClientConfig{
+			URL: webClientURL,
+		},
 		ServerQuery: ServerQueryConfig{
 			Host:       strings.TrimSpace(raw.ServerQuery.Host),
 			QueryPort:  raw.ServerQuery.QueryPort,
@@ -142,4 +163,26 @@ func Load(path string) (Config, error) {
 			Nickname:   nickname,
 		},
 	}, nil
+}
+
+// parseWebClientURL 校验网页客户端地址：空值表示未启用该入口，
+// 非空则必须是绝对的 http(s) 地址，避免任意协议被原样写进前端 href。
+func parseWebClientURL(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("web_client.url is not a valid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("web_client.url must use http or https, got %q", parsed.Scheme)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("web_client.url must be an absolute URL with a host, got %q", raw)
+	}
+
+	return trimmed, nil
 }

@@ -93,10 +93,15 @@ export interface Branding {
   header_title: string
 }
 
+export interface WebClient {
+  url: string
+}
+
 export interface PublicConfig {
   server_host: string
   server_port: number
   branding: Branding
+  web_client: WebClient
 }
 
 export type ConnectionState = 'connecting' | 'live' | 'stale' | 'waiting'
