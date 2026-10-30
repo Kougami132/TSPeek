@@ -165,6 +165,10 @@ func (l *EventListener) connectAndListen(ctx context.Context) error {
 		return fmt.Errorf("use port failed: %w", err)
 	}
 
+	if l.opts.Config.Nickname != "" {
+		l.updateNickname(l.opts.Config.Nickname)
+	}
+
 	// 4. 注册服务器级与频道级事件通知
 	if _, err := l.execSync("servernotifyregister event=server"); err != nil {
 		return fmt.Errorf("register event=server failed: %w", err)
@@ -265,6 +269,13 @@ func (l *EventListener) readStreamLine() (string, error) {
 		return "", err
 	}
 	return strings.Trim(line, "\r\n"), nil
+}
+
+func (l *EventListener) updateNickname(baseName string) {
+	tryUpdateNickname(baseName, func(cmd string) error {
+		_, err := l.execSync(cmd)
+		return err
+	}, l.logger)
 }
 
 func (l *EventListener) populateBaseline(lines []string) {

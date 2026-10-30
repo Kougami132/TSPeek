@@ -440,3 +440,47 @@ func TestEventListener_EndToEndActivityLogStorageAndPipeline(t *testing.T) {
 		t.Errorf("expected items in reverse chronological order, got: %s then %s", page.Items[0].Action, page.Items[1].Action)
 	}
 }
+
+func TestEventListenerCustomNickname(t *testing.T) {
+	server := newMockServer(t, "")
+	defer server.Close()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	snapshotStore := store.New()
+	tracker := newRecordTracker()
+
+	listener := tsquery.NewEventListener(tsquery.EventListenerOptions{
+		Config: config.ServerQueryConfig{
+			Host:       "127.0.0.1",
+			QueryPort:  server.port,
+			ServerPort: 9987,
+			Username:   "serveradmin",
+			Password:   "secret",
+			Nickname:   "MyBot",
+		},
+		Logger:            logger,
+		Resolver:          snapshotStore,
+		Recorder:          tracker,
+		KeepAliveInterval: 10 * time.Second,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go listener.Run(ctx)
+	defer listener.Close()
+
+	tracker.AssertNoEvents(t, 200*time.Millisecond)
+
+	cmds := server.Commands()
+	hasClientUpdate := false
+	for _, cmd := range cmds {
+		if cmd == "clientupdate client_nickname=MyBot" {
+			hasClientUpdate = true
+			break
+		}
+	}
+	if !hasClientUpdate {
+		t.Fatalf("expected clientupdate command in handshake, got: %v", cmds)
+	}
+}

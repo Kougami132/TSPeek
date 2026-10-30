@@ -23,6 +23,7 @@ type fileServerQuery struct {
 	Username   string `yaml:"username"`
 	Password   string `yaml:"password"`
 	ServerPort int    `yaml:"server_port"`
+	Nickname   string `yaml:"nickname"`
 }
 
 type fileBranding struct {
@@ -47,6 +48,7 @@ type ServerQueryConfig struct {
 	Username   string
 	Password   string
 	ServerPort int
+	Nickname   string
 }
 
 type BrandingConfig struct {
@@ -116,6 +118,11 @@ func Load(path string) (Config, error) {
 		headerTitle = "TSPeek"
 	}
 
+	nickname := strings.TrimSpace(raw.ServerQuery.Nickname)
+	if nickname == "" {
+		nickname = "TSPeek"
+	}
+
 	return Config{
 		Port:        port,
 		LogLevel:    level,
@@ -132,6 +139,7 @@ func Load(path string) (Config, error) {
 			Username:   raw.ServerQuery.Username,
 			Password:   raw.ServerQuery.Password,
 			ServerPort: raw.ServerQuery.ServerPort,
+			Nickname:   nickname,
 		},
 	}, nil
 }

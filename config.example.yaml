@@ -15,3 +15,4 @@ serverquery:
   username: "serverquery_user"
   password: "change-me"
   server_port: 9987
+  nickname: "TSPeek" # [可选] 机器人显示昵称，默认 TSPeek

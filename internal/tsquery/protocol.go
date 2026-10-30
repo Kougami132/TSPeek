@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"strconv"
 	"strings"
@@ -70,7 +71,41 @@ func (c *Client) ensureConnected(ctx context.Context) (reconnected bool, err err
 		return false, err
 	}
 
+	if c.cfg.Nickname != "" {
+		c.updateNickname(ctx, c.cfg.Nickname)
+	}
+
 	return true, nil
+}
+
+func tryUpdateNickname(baseName string, exec func(string) error, logger *slog.Logger) {
+	for i := 0; i < 5; i++ {
+		name := baseName
+		if i > 0 {
+			name = fmt.Sprintf("%s %d", baseName, i)
+		}
+		cmd := formatCommand("clientupdate", commandArg{Key: "client_nickname", Value: name})
+		err := exec(cmd)
+		if err == nil {
+			return
+		}
+		if !strings.Contains(err.Error(), "nickname is already in use") && !strings.Contains(err.Error(), "id=513") {
+			if logger != nil {
+				logger.Debug("failed to set query nickname", slog.String("nickname", name), slog.String("error", err.Error()))
+			}
+			return
+		}
+	}
+	if logger != nil {
+		logger.Warn("failed to set query nickname after retries", slog.String("base_nickname", baseName))
+	}
+}
+
+func (c *Client) updateNickname(ctx context.Context, baseName string) {
+	tryUpdateNickname(baseName, func(cmd string) error {
+		_, err := c.exec(ctx, cmd)
+		return err
+	}, c.logger)
 }
 
 func (c *Client) exec(_ context.Context, command string) ([]string, error) {
