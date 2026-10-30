@@ -208,9 +208,8 @@ func (c *Client) connectAndServe(ctx context.Context) error {
 	}
 
 	if c.cfg.Nickname != "" {
-		tryUpdateNickname(c.cfg.Nickname, func(cmd string) error {
-			_, err := c.execLocked(ctx, cmd)
-			return err
+		tryUpdateNickname(c.cfg.Nickname, func(cmd string) ([]string, error) {
+			return c.execLocked(ctx, cmd)
 		}, c.logger)
 	}
 

@@ -29,20 +29,29 @@ func formatCommand(name string, args ...commandArg) string {
 	return builder.String()
 }
 
-func tryUpdateNickname(baseName string, exec func(string) error, logger *slog.Logger) {
+func tryUpdateNickname(baseName string, exec func(string) ([]string, error), logger *slog.Logger) {
+	// 先通过 whoami 检查当前昵称，若已经一致则无需发送 clientupdate，避免 TS3 返回 id=513
+	whoamiLines, err := exec("whoami")
+	if err == nil {
+		rows := parseResponseRows(whoamiLines)
+		if len(rows) > 0 && rows[0]["client_nickname"] == baseName {
+			return
+		}
+	}
+
 	for i := 0; i < 5; i++ {
 		name := baseName
 		if i > 0 {
 			name = fmt.Sprintf("%s %d", baseName, i)
 		}
 		cmd := formatCommand("clientupdate", commandArg{Key: "client_nickname", Value: name})
-		err := exec(cmd)
+		_, err := exec(cmd)
 		if err == nil {
 			return
 		}
 		if !strings.Contains(err.Error(), "nickname is already in use") && !strings.Contains(err.Error(), "id=513") {
 			if logger != nil {
-				logger.Debug("failed to set query nickname", slog.String("nickname", name), slog.String("error", err.Error()))
+				logger.Warn("failed to set query nickname", slog.String("nickname", name), slog.String("error", err.Error()))
 			}
 			return
 		}
