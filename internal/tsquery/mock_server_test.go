@@ -13,11 +13,12 @@ type mockServer struct {
 	listener net.Listener
 	port     int
 
-	mu       sync.Mutex
-	conn     net.Conn
-	writer   *bufio.Writer
-	commands []string
-	closed   bool
+	mu              sync.Mutex
+	conn            net.Conn
+	writer          *bufio.Writer
+	commands        []string
+	connectionCount int
+	closed          bool
 
 	baselineRows string // response for clientlist -uid
 }
@@ -49,6 +50,7 @@ func (s *mockServer) acceptLoop() {
 		s.mu.Lock()
 		s.conn = conn
 		s.writer = bufio.NewWriter(conn)
+		s.connectionCount++
 		s.mu.Unlock()
 
 		// Send TS3 welcome banner
@@ -80,6 +82,26 @@ func (s *mockServer) handleConnection(conn net.Conn) {
 			_, _ = writer.WriteString("error id=0 msg=ok\n\r")
 			_ = writer.Flush()
 			s.mu.Unlock()
+		} else if strings.HasPrefix(trimmed, "serverinfo") {
+			s.mu.Lock()
+			_, _ = writer.WriteString("virtualserver_name=Test\\sServer virtualserver_status=online virtualserver_platform=Linux virtualserver_version=3.13.7\n\rerror id=0 msg=ok\n\r")
+			_ = writer.Flush()
+			s.mu.Unlock()
+		} else if strings.HasPrefix(trimmed, "channellist") {
+			s.mu.Lock()
+			_, _ = writer.WriteString("cid=1 channel_name=Lobby channel_order=0\n\rerror id=0 msg=ok\n\r")
+			_ = writer.Flush()
+			s.mu.Unlock()
+		} else if strings.HasPrefix(trimmed, "servergrouplist") {
+			s.mu.Lock()
+			_, _ = writer.WriteString("sgid=6 name=Server\\sAdmin type=1\n\rerror id=0 msg=ok\n\r")
+			_ = writer.Flush()
+			s.mu.Unlock()
+		} else if strings.HasPrefix(trimmed, "channelgrouplist") {
+			s.mu.Lock()
+			_, _ = writer.WriteString("cgid=5 name=Channel\\sAdmin type=1\n\rerror id=0 msg=ok\n\r")
+			_ = writer.Flush()
+			s.mu.Unlock()
 		} else if strings.HasPrefix(trimmed, "clientlist") {
 			s.mu.Lock()
 			if s.baselineRows != "" {
@@ -91,6 +113,13 @@ func (s *mockServer) handleConnection(conn net.Conn) {
 		} else if strings.HasPrefix(trimmed, "whoami") {
 			s.mu.Lock()
 			_, _ = writer.WriteString("virtualserver_status=online client_id=1\n\rerror id=0 msg=ok\n\r")
+			_ = writer.Flush()
+			s.mu.Unlock()
+		} else if strings.HasPrefix(trimmed, "interleaved_cmd") {
+			s.mu.Lock()
+			_, _ = writer.WriteString("notifycliententerview cfid=0 ctid=1 reasonid=0 clid=4 client_unique_identifier=interleaved_uid client_nickname=InterleavedUser client_type=0\n\r")
+			_, _ = writer.WriteString("data_key=data_value\n\r")
+			_, _ = writer.WriteString("error id=0 msg=ok\n\r")
 			_ = writer.Flush()
 			s.mu.Unlock()
 		} else {
@@ -143,4 +172,10 @@ func (s *mockServer) Commands() []string {
 	copied := make([]string, len(s.commands))
 	copy(copied, s.commands)
 	return copied
+}
+
+func (s *mockServer) ConnectionCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.connectionCount
 }

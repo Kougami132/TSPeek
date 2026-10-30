@@ -1,13 +1,9 @@
 package tsquery
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +24,7 @@ type ActivityRecorder interface {
 
 // EventListenerOptions 配置 EventListener。
 type EventListenerOptions struct {
+	Client            *Client
 	Config            config.ServerQueryConfig
 	Logger            *slog.Logger
 	Resolver          ChannelResolver
@@ -45,20 +42,18 @@ type clientSession struct {
 	clientType int
 }
 
-// EventListener 维护专用的持久 ServerQuery 连接，监听原生事件推送并转换为 Activity Event。
+// EventListener 监听原生 ServerQuery 事件推送并转换为 Activity Event。
 type EventListener struct {
-	opts     EventListenerOptions
-	logger   *slog.Logger
-	resolver ChannelResolver
-	recorder ActivityRecorder
+	opts       EventListenerOptions
+	client     *Client
+	ownsClient bool
+	logger     *slog.Logger
+	resolver   ChannelResolver
+	recorder   ActivityRecorder
 
 	mu        sync.Mutex
-	writeMu   sync.Mutex
-	conn      net.Conn
-	reader    *bufio.Reader
 	clients   map[int]clientSession
 	stopCh    chan struct{}
-	closed    bool
 	closeOnce sync.Once
 }
 
@@ -67,221 +62,80 @@ func NewEventListener(opts EventListenerOptions) *EventListener {
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
-	if opts.KeepAliveInterval <= 0 {
-		opts.KeepAliveInterval = 60 * time.Second
-	}
-	if opts.InitialBackoff <= 0 {
-		opts.InitialBackoff = 1 * time.Second
-	}
-	if opts.MaxBackoff <= 0 {
-		opts.MaxBackoff = 60 * time.Second
-	}
-
-	return &EventListener{
-		opts:     opts,
-		logger:   opts.Logger,
-		resolver: opts.Resolver,
-		recorder: opts.Recorder,
-		clients:  make(map[int]clientSession),
-		stopCh:   make(chan struct{}),
-	}
-}
-
-// Run 启动监听循环并在网络断开时自动重连。阻塞直到 context 取消或调用 Close()。
-func (l *EventListener) Run(ctx context.Context) {
-	backoff := l.opts.InitialBackoff
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-l.stopCh:
-			return
-		default:
-		}
-
-		err := l.connectAndListen(ctx)
-		if ctx.Err() != nil || l.isClosed() {
-			return
-		}
-
-		l.logger.Warn("event listener disconnected, reconnecting...",
-			slog.Any("error", err),
-			slog.Duration("backoff", backoff),
-		)
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-l.stopCh:
-			return
-		case <-time.After(backoff):
-		}
-
-		backoff *= 2
-		if backoff > l.opts.MaxBackoff {
-			backoff = l.opts.MaxBackoff
-		}
-	}
-}
-
-func (l *EventListener) connectAndListen(ctx context.Context) error {
-	address := net.JoinHostPort(l.opts.Config.Host, strconv.Itoa(l.opts.Config.QueryPort))
-	dialer := net.Dialer{Timeout: dialTimeout}
-	conn, err := dialer.DialContext(ctx, "tcp", address)
-	if err != nil {
-		return err
+	ownsClient := false
+	if opts.Client == nil {
+		opts.Client = NewClientWithOptions(ClientOptions{
+			Config:            opts.Config,
+			Logger:            opts.Logger,
+			KeepAliveInterval: opts.KeepAliveInterval,
+			InitialBackoff:    opts.InitialBackoff,
+			MaxBackoff:        opts.MaxBackoff,
+		})
+		ownsClient = true
 	}
 
-	l.mu.Lock()
-	l.conn = conn
-	l.reader = bufio.NewReader(conn)
-	// 清空历史客户端缓存，准备重新基准初始化
-	l.clients = make(map[int]clientSession)
-	l.mu.Unlock()
-
-	defer l.closeConn()
-
-	// 1. 读取 Banner 头与欢迎信息
-	if _, err := l.readLine(); err != nil {
-		return fmt.Errorf("failed to read banner: %w", err)
-	}
-	if _, err := l.readLine(); err != nil {
-		return fmt.Errorf("failed to read welcome message: %w", err)
+	l := &EventListener{
+		opts:       opts,
+		client:     opts.Client,
+		ownsClient: ownsClient,
+		logger:     opts.Logger,
+		resolver:   opts.Resolver,
+		recorder:   opts.Recorder,
+		clients:    make(map[int]clientSession),
+		stopCh:     make(chan struct{}),
 	}
 
-	// 2. 认证登录
-	loginCmd := formatCommand("login",
-		commandArg{Key: "client_login_name", Value: l.opts.Config.Username},
-		commandArg{Key: "client_login_password", Value: l.opts.Config.Password},
-	)
-	if _, err := l.execSync(loginCmd); err != nil {
-		return fmt.Errorf("login failed: %w", err)
-	}
-
-	// 3. 选择虚拟服务器
-	useCmd := formatCommand("use", commandArg{Key: "port", Value: strconv.Itoa(l.opts.Config.ServerPort)})
-	if _, err := l.execSync(useCmd); err != nil {
-		return fmt.Errorf("use port failed: %w", err)
-	}
-
-	if l.opts.Config.Nickname != "" {
-		l.updateNickname(l.opts.Config.Nickname)
-	}
-
-	// 4. 注册服务器级与频道级事件通知
-	if _, err := l.execSync("servernotifyregister event=server"); err != nil {
-		return fmt.Errorf("register event=server failed: %w", err)
-	}
-	if _, err := l.execSync("servernotifyregister event=channel id=0"); err != nil {
-		return fmt.Errorf("register event=channel failed: %w", err)
-	}
-
-	// 5. 拉取初始 clientlist 静默建立基准
-	clientLines, err := l.execSync("clientlist -uid")
-	if err != nil {
-		return fmt.Errorf("baseline clientlist failed: %w", err)
-	}
-	l.populateBaseline(clientLines)
-
-	l.logger.Info("event listener connected and baselined successfully",
-		slog.Int("online_clients", len(l.clients)),
-	)
-
-	// 6. 启动后台保活心跳
-	heartbeatDone := make(chan struct{})
-	defer close(heartbeatDone)
-
-	go func() {
-		ticker := time.NewTicker(l.opts.KeepAliveInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-l.stopCh:
-				return
-			case <-heartbeatDone:
-				return
-			case <-ticker.C:
-				if err := l.sendKeepAlive(); err != nil {
-					l.logger.Debug("keepalive ping failed", slog.Any("error", err))
-					l.closeConn()
-					return
-				}
-			}
-		}
-	}()
-
-	// 7. 持续读取事件流
-	for {
-		line, err := l.readStreamLine()
+	// 注册重连基准钩子：连接/重连建立后，静默拉取 clientlist 建立当前在线会话映射
+	l.client.OnConnect(func(ctx context.Context) error {
+		lines, err := l.client.Exec(ctx, "clientlist -uid")
 		if err != nil {
-			return err
+			return fmt.Errorf("baseline clientlist failed: %w", err)
 		}
-		if line == "" {
-			continue
+		l.populateBaseline(lines)
+		return nil
+	})
+
+	return l
+}
+
+// Run 启动监听消费循环。若自行拥有底层 Client，则同时在后台运行 Client 连接管理。
+func (l *EventListener) Run(ctx context.Context) {
+	if l.ownsClient {
+		go l.client.Run(ctx)
+	}
+
+	notifyCh := l.client.Notifications()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-l.stopCh:
+			return
+		case line, ok := <-notifyCh:
+			if !ok {
+				return
+			}
+			l.handleLine(line)
 		}
-		l.handleLine(line)
 	}
 }
 
-func (l *EventListener) sendKeepAlive() error {
-	l.writeMu.Lock()
-	defer l.writeMu.Unlock()
-
-	l.mu.Lock()
-	conn := l.conn
-	l.mu.Unlock()
-
-	if conn == nil {
-		return fmt.Errorf("connection not available")
-	}
-
-	if err := conn.SetWriteDeadline(time.Now().Add(commandTimeout)); err != nil {
-		return err
-	}
-	_, err := io.WriteString(conn, "whoami\n")
-	return err
-}
-
-func (l *EventListener) readStreamLine() (string, error) {
-	l.mu.Lock()
-	conn := l.conn
-	reader := l.reader
-	l.mu.Unlock()
-
-	if conn == nil || reader == nil {
-		return "", io.EOF
-	}
-
-	timeout := l.opts.KeepAliveInterval * 3
-	if timeout < 2*time.Second {
-		timeout = 2 * time.Second
-	}
-	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
-		return "", err
-	}
-
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.Trim(line, "\r\n"), nil
-}
-
-func (l *EventListener) updateNickname(baseName string) {
-	tryUpdateNickname(baseName, func(cmd string) error {
-		_, err := l.execSync(cmd)
-		return err
-	}, l.logger)
+// Close 关闭监听器。
+func (l *EventListener) Close() {
+	l.closeOnce.Do(func() {
+		close(l.stopCh)
+		if l.ownsClient {
+			l.client.Close()
+		}
+	})
 }
 
 func (l *EventListener) populateBaseline(lines []string) {
 	rows := parseResponseRows(lines)
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.clients = make(map[int]clientSession, len(rows))
 	for _, row := range rows {
 		clid := parseInt(row["clid"])
 		if clid == 0 {
@@ -295,6 +149,7 @@ func (l *EventListener) populateBaseline(lines []string) {
 			clientType: parseInt(row["client_type"]),
 		}
 	}
+	l.logger.Info("event listener baselined successfully", slog.Int("online_clients", len(l.clients)))
 }
 
 func (l *EventListener) handleLine(line string) {
@@ -484,90 +339,4 @@ func (l *EventListener) emitEvents(events []activity.Event) {
 	if err := l.recorder.RecordEvents(events); err != nil {
 		l.logger.Error("failed to record activity events", slog.Any("error", err))
 	}
-}
-
-func (l *EventListener) execSync(command string) ([]string, error) {
-	l.writeMu.Lock()
-	defer l.writeMu.Unlock()
-
-	l.mu.Lock()
-	conn := l.conn
-	l.mu.Unlock()
-
-	if conn == nil {
-		return nil, fmt.Errorf("connection not available")
-	}
-
-	if err := conn.SetWriteDeadline(time.Now().Add(commandTimeout)); err != nil {
-		return nil, err
-	}
-	if _, err := io.WriteString(conn, command+"\n"); err != nil {
-		return nil, err
-	}
-
-	lines := make([]string, 0, 4)
-	for {
-		line, err := l.readLine()
-		if err != nil {
-			return nil, err
-		}
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "notify") {
-			// 在握手期间可能收到早期通知，丢弃或稍后在基准同步
-			continue
-		}
-		if strings.HasPrefix(line, "error ") {
-			if err := parseErrorLine(line); err != nil {
-				return nil, err
-			}
-			return lines, nil
-		}
-		lines = append(lines, line)
-	}
-}
-
-func (l *EventListener) readLine() (string, error) {
-	l.mu.Lock()
-	reader := l.reader
-	conn := l.conn
-	l.mu.Unlock()
-
-	if conn == nil || reader == nil {
-		return "", io.EOF
-	}
-
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.Trim(line, "\r\n"), nil
-}
-
-func (l *EventListener) closeConn() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.conn != nil {
-		_ = l.conn.Close()
-		l.conn = nil
-		l.reader = nil
-	}
-}
-
-func (l *EventListener) isClosed() bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.closed
-}
-
-// Close 关闭监听器并断开连接。
-func (l *EventListener) Close() {
-	l.closeOnce.Do(func() {
-		l.mu.Lock()
-		l.closed = true
-		l.mu.Unlock()
-		close(l.stopCh)
-		l.closeConn()
-	})
 }

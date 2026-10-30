@@ -121,7 +121,17 @@ func main() {
 	dataStore := store.New()
 	activityService := activity.NewService(cfg.ActivityLog, logger)
 	queryClient := tsquery.NewClient(cfg.ServerQuery, logger)
-	iconService := icon.NewService(cfg.ServerQuery, logger)
+	iconService := icon.NewService(queryClient, cfg.ServerQuery.Host, logger)
+
+	eventListener := tsquery.NewEventListener(tsquery.EventListenerOptions{
+		Client:   queryClient,
+		Config:   cfg.ServerQuery,
+		Logger:   logger,
+		Resolver: dataStore,
+		Recorder: activityService,
+	})
+	go queryClient.Run(ctx)
+	go eventListener.Run(ctx)
 
 	p := &poller{
 		client: queryClient,
@@ -129,14 +139,6 @@ func main() {
 		logger: logger,
 	}
 	go p.run(ctx)
-
-	eventListener := tsquery.NewEventListener(tsquery.EventListenerOptions{
-		Config:   cfg.ServerQuery,
-		Logger:   logger,
-		Resolver: dataStore,
-		Recorder: activityService,
-	})
-	go eventListener.Run(ctx)
 
 	apiServer := api.NewServer(api.Options{
 		Logger:     logger,
@@ -164,9 +166,9 @@ func main() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
 		eventListener.Close()
 		queryClient.Close()
-		_ = server.Shutdown(shutdownCtx)
 	}()
 
 	logger.Info("starting server", slog.String("listen_address", listenAddr))

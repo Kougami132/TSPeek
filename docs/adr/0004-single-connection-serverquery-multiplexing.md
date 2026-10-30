@@ -1,0 +1,3 @@
+# Single-Connection ServerQuery Multiplexing
+
+We chose to multiplex snapshot polling, icon file transfer initiation, and asynchronous notification listening onto a single persistent ServerQuery connection rather than maintaining multiple parallel connections. Having multiple connections spawned multiple visible query bots (e.g. `TSPeek` and `TSPeek 1`) in the TeamSpeak client tree and complicated connection lifecycles. A single-connection reader demuxer routes asynchronous `notify*` lines to buffered event channels with zero lag while serializing synchronous commands and their `error id=...` terminators behind a command mutex, ensuring exactly one query client session appears on the server without compromising real-time event delivery or polling fidelity.

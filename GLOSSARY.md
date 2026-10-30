@@ -24,3 +24,11 @@ _Avoid_: DatabaseID, Nickname
 TeamSpeak ServerQuery 传输层推送的原生异步通知消息（如 `notifycliententerview`, `notifyclientleftview`），属于协议传输实现细节。系统将其单向转换并铸造为业务领域的 `Activity Event`。
 _Avoid_: Event, Signal
 
+**ServerQuery Session**:
+TSPeek 与 TeamSpeak 服务器维持的单一持久 ServerQuery 协议会话。在虚拟服务器中表现为单一的 ServerQuery 客户端实体，统筹承载快照轮询、文件传输初始化及异步事件监听。
+_Avoid_: Query Bot, Query Connection, Query Account
+
+**ServerQuery Account**:
+用于在 TeamSpeak 虚拟服务器上进行身份认证的凭证（用户名与密码）。
+_Avoid_: User, Login, Bot Account
+
